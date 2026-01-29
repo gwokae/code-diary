@@ -1,6 +1,6 @@
 ---
 name: code-diary
-description: Developer task management and work logging system. Use when managing development tasks (add, switch, archive), tracking work progress, logging daily work with git commits, or generating weekly summaries. Integrates with JIRA/GitHub issue trackers and git workflows. Triggers include "add task", "switch to task", "start task", "log work", "log daily work", "weekly summary", "archive task".
+description: Developer task management and work logging system. Use when setting up projects, managing development tasks (add, switch, archive), tracking work progress, logging daily work with git commits, or generating weekly summaries. Integrates with JIRA/GitHub issue trackers and git workflows. Triggers include "setup project", "add project", "initialize project", "add task", "switch to task", "start task", "log work", "log daily work", "weekly summary", "archive task".
 ---
 
 # Code Diary
@@ -83,7 +83,55 @@ This allows unified daily logging across all projects while keeping tasks organi
 
 ## Core Workflows
 
-### 1. Adding New Tasks
+### 1. Adding New Project
+
+**When to use:** Setting up code-diary for a new project or repository.
+
+**Process:**
+
+1. Navigate to the project directory (optional, for auto-detection)
+2. Run `scripts/init_project.cjs` with project name and options
+
+**Options:**
+
+- **Auto-detect** (recommended): `--auto-detect`
+  - Detects main branch from git (main/master/develop)
+  - Detects issue tracker type from git remote URL
+
+- **Manual configuration**:
+  - `--issue-tracker-type <type>`: jira, github, or linear
+  - `--issue-tracker-url <url>`: Base URL for issue tracker
+  - `--issue-tracker-prefix <prefix>`: Project prefix (e.g., PROJ, ABC)
+  - `--main-branch <branch>`: Main branch name
+  - `--feature-branch-rule <rule>`: Branch naming template
+
+**Examples:**
+
+Auto-detect settings from current directory:
+```bash
+cd ~/workspace/my-project
+node scripts/init_project.cjs my-project --auto-detect
+```
+
+Manual configuration:
+```bash
+node scripts/init_project.cjs my-project \
+  --issue-tracker-type jira \
+  --issue-tracker-url https://example.atlassian.net \
+  --issue-tracker-prefix PROJ \
+  --main-branch develop \
+  --feature-branch-rule "feat/{filename}"
+```
+
+**Output:**
+- Creates `~/.claude/worklogs/<project>/project.json`
+- Creates `~/.claude/worklogs/<project>/tasks/{new,working,archived}/`
+- Creates `~/.claude/worklogs/logs/` (if not exists)
+- Displays generated configuration
+
+**Note:** If project already exists, script will error. Edit `project.json` manually to update configuration.
+
+### 2. Adding New Tasks
 
 **Input formats:**
 
@@ -122,7 +170,7 @@ Dashboard Automations Triggers - Sensors
 
 **Output:** Confirm tasks created with filenames and locations.
 
-### 2. Switching Tasks
+### 3. Switching Tasks
 
 **Input:** Tracking ID (with or without prefix) or task summary keywords
 
@@ -160,7 +208,7 @@ If reopening/reworking a task on a different branch:
 - Format: `<tracking-id>_<rework-summary>_<rework-count>`
 - Increment rework count for each iteration
 
-### 3. Logging Daily Work
+### 4. Logging Daily Work
 
 **Input:**
 - Date (optional, defaults to today via `date` command)
@@ -220,7 +268,7 @@ This Week:
   - Added unit tests
 ```
 
-### 4. Archiving Tasks
+### 5. Archiving Tasks
 
 **Input:** Tracking ID or task summary keywords
 
@@ -234,7 +282,7 @@ This Week:
 
 **Output:** Confirm task archived with filename.
 
-### 5. Weekly Summary
+### 6. Weekly Summary
 
 **Input:** Date (optional, defaults to today)
 
@@ -262,6 +310,11 @@ This Week:
 ## Helper Scripts
 
 All scripts are in `scripts/` directory:
+
+- **`init_project.cjs`**: Initialize a new project configuration
+  - Usage: `node init_project.cjs <project-name> [options]`
+  - Options: `--auto-detect`, `--issue-tracker-type`, `--issue-tracker-url`, `--issue-tracker-prefix`, `--main-branch`, `--feature-branch-rule`
+  - Creates project directory structure and configuration file
 
 - **`get_current_project.cjs`**: Detect current project from working directory
   - Usage: `node get_current_project.cjs [working-directory]`
