@@ -13,10 +13,12 @@ const DEFAULT_CONFIG = {
 };
 
 function getConfigPath() {
-  return path.join(process.env.HOME, '.claude/code-diary/config.json');
+  // Config is stored in the skill directory itself
+  return path.join(__dirname, '../config.json');
 }
 
 function ensureConfigDir() {
+  // No need to create directory - config is in skill root which already exists
   const configDir = path.dirname(getConfigPath());
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, { recursive: true });

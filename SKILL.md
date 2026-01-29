@@ -48,7 +48,7 @@ Code-diary uses a global configuration file to customize paths and settings.
 
 ### Global Configuration
 
-Location: `~/.claude/code-diary/config.json`
+Location: `~/.claude/skills/code-diary/config.json`
 
 **Auto-creation:** If the config file doesn't exist, it will be automatically created with defaults when any code-diary script is run.
 
@@ -122,7 +122,7 @@ Code-diary uses a hybrid structure:
         └── archived/        # Completed tasks
 ```
 
-The base path (`<worklogsPath>`) is configurable in `~/.claude/code-diary/config.json`.
+The base path (`<worklogsPath>`) is configurable in `~/.claude/skills/code-diary/config.json`.
 
 This allows unified daily logging across all projects while keeping tasks organized by project.
 
