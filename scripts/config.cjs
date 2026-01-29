@@ -29,7 +29,10 @@ function loadConfig() {
   // If config doesn't exist, create it with defaults
   if (!fs.existsSync(configPath)) {
     ensureConfigDir();
-    fs.writeFileSync(configPath, JSON.stringify(DEFAULT_CONFIG, null, 2) + '\n');
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify(DEFAULT_CONFIG, null, 2) + '\n',
+    );
     return DEFAULT_CONFIG;
   }
 
@@ -43,7 +46,9 @@ function loadConfig() {
       ...config,
     };
   } catch (error) {
-    console.error(`Warning: Failed to parse config at ${configPath}: ${error.message}`);
+    console.error(
+      `Warning: Failed to parse config at ${configPath}: ${error.message}`,
+    );
     console.error('Using default configuration.');
     return DEFAULT_CONFIG;
   }
@@ -82,13 +87,17 @@ if (require.main === module) {
     console.log('');
     console.log('Commands:');
     console.log('  show                          Show current configuration');
-    console.log('  init                          Initialize config with defaults');
+    console.log(
+      '  init                          Initialize config with defaults',
+    );
     console.log('  set <key> <value>            Set a configuration value');
     console.log('  get <key>                    Get a configuration value');
     console.log('  path                         Show config file path');
     console.log('');
     console.log('Keys:');
-    console.log('  worklogsPath                 Base directory for worklogs and projects');
+    console.log(
+      '  worklogsPath                 Base directory for worklogs and projects',
+    );
     console.log('');
     console.log('Examples:');
     console.log('  node config.cjs show');

@@ -13,7 +13,9 @@
 
 function getWeekNumber(date) {
   // Copy date so we don't modify original
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
 
   // Set to nearest Thursday: current date + 4 - current day number
   // Make Sunday's day number 7
@@ -24,7 +26,7 @@ function getWeekNumber(date) {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
 
   // Calculate full weeks to nearest Thursday
-  const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 
   return weekNum;
 }

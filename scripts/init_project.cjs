@@ -30,7 +30,10 @@ function autoDetectSettings(cwd = process.cwd()) {
 
   try {
     // Try to detect main branch
-    const branches = execSync('git branch -r', { cwd, encoding: 'utf-8' }).split('\n');
+    const branches = execSync('git branch -r', {
+      cwd,
+      encoding: 'utf-8',
+    }).split('\n');
 
     for (const branch of branches) {
       const trimmed = branch.trim();
@@ -55,7 +58,9 @@ function autoDetectSettings(cwd = process.cwd()) {
     if (remoteUrl.includes('github.com')) {
       settings.issueTracker = {
         type: 'github',
-        baseUrl: remoteUrl.replace('.git', '').replace('git@github.com:', 'https://github.com/'),
+        baseUrl: remoteUrl
+          .replace('.git', '')
+          .replace('git@github.com:', 'https://github.com/'),
       };
     }
   } catch (error) {
@@ -73,7 +78,9 @@ function initProject(projectName, options = {}) {
 
   // Check if project already exists
   if (fs.existsSync(configPath)) {
-    throw new Error(`Project "${projectName}" already exists at ${projectPath}`);
+    throw new Error(
+      `Project "${projectName}" already exists at ${projectPath}`,
+    );
   }
 
   // Create directory structure
@@ -134,16 +141,28 @@ if (require.main === module) {
     console.log('Usage: node init_project.cjs <project-name> [options]');
     console.log('');
     console.log('Options:');
-    console.log('  --issue-tracker-type <type>      Issue tracker type (jira|github|linear)');
+    console.log(
+      '  --issue-tracker-type <type>      Issue tracker type (jira|github|linear)',
+    );
     console.log('  --issue-tracker-url <url>        Issue tracker base URL');
-    console.log('  --issue-tracker-prefix <prefix>  Issue tracker project prefix');
-    console.log('  --main-branch <branch>           Main branch name (default: main)');
-    console.log('  --feature-branch-rule <rule>     Feature branch rule (default: feat/{filename})');
-    console.log('  --auto-detect                    Auto-detect settings from current directory');
+    console.log(
+      '  --issue-tracker-prefix <prefix>  Issue tracker project prefix',
+    );
+    console.log(
+      '  --main-branch <branch>           Main branch name (default: main)',
+    );
+    console.log(
+      '  --feature-branch-rule <rule>     Feature branch rule (default: feat/{filename})',
+    );
+    console.log(
+      '  --auto-detect                    Auto-detect settings from current directory',
+    );
     console.log('');
     console.log('Examples:');
     console.log('  node init_project.cjs my-project --auto-detect');
-    console.log('  node init_project.cjs my-project --issue-tracker-type jira --issue-tracker-url https://example.atlassian.net --issue-tracker-prefix PROJ');
+    console.log(
+      '  node init_project.cjs my-project --issue-tracker-type jira --issue-tracker-url https://example.atlassian.net --issue-tracker-prefix PROJ',
+    );
     process.exit(0);
   }
 

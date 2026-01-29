@@ -19,9 +19,12 @@ function formatWorklog(filePath) {
     const prettierConfig = path.join(__dirname, '../.prettierrc.js');
 
     // Run prettier on the file
-    execSync(`npx prettier --write --config "${prettierConfig}" "${filePath}"`, {
-      stdio: 'inherit',
-    });
+    execSync(
+      `npx prettier --write --config "${prettierConfig}" "${filePath}"`,
+      {
+        stdio: 'inherit',
+      },
+    );
 
     console.log(`✅ Formatted: ${filePath}`);
   } catch (error) {

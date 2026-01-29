@@ -1,0 +1,11 @@
+# Template files with placeholder syntax
+assets/task_template.md
+assets/worklog_template.md
+assets/config_template.json
+
+# Build outputs
+*.skill
+dist/
+
+# Dependencies
+node_modules/

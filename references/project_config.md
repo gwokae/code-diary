@@ -22,11 +22,13 @@ Project configurations define the settings for each project being tracked in cod
 ## Fields
 
 ### `name` (string, required)
+
 Project identifier used in worklog paths and task metadata.
 
 Example: `"my-project"`, `"dashboard"`, `"api-service"`
 
 ### `issueTracker` (object, optional)
+
 Issue tracking system configuration.
 
 - **`type`** (string): Type of issue tracker - `"jira"`, `"github"`, or `"linear"`
@@ -34,6 +36,7 @@ Issue tracking system configuration.
 - **`projectPrefix`** (string): Project prefix for issues (e.g., "PROJ" for PROJ-123)
 
 ### `repository` (object, required)
+
 Git repository settings.
 
 - **`mainBranch`** (string): Name of the main branch (e.g., `"main"`, `"master"`, `"develop"`)
@@ -64,6 +67,7 @@ Git repository settings.
 ## Directory Structure
 
 Code-diary uses a hybrid structure:
+
 - **Tasks**: Project-specific (each project has its own tasks)
 - **Worklogs**: Global (shared across all projects for unified daily logging)
 
@@ -84,6 +88,7 @@ Code-diary uses a hybrid structure:
 The base path (`<worklogsPath>`) is configured in `~/.claude/code-diary/config.json`.
 
 This structure allows:
+
 - Task management per project (organized by project context)
 - Unified worklog across all projects (single daily log showing work from all projects)
 - Flexible storage location for worklogs and projects

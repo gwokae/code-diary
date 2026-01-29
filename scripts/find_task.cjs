@@ -13,7 +13,6 @@ const fs = require('fs');
 const path = require('path');
 
 function findTaskFiles(tasksPath, searchTerm) {
-
   if (!fs.existsSync(tasksPath)) {
     return [];
   }
@@ -62,7 +61,10 @@ function findTaskFiles(tasksPath, searchTerm) {
           const trackingIdMatch = frontmatter.match(/tracking_id:\s*(.+)/);
           const summaryMatch = frontmatter.match(/summary:\s*(.+)/);
 
-          if (trackingIdMatch && trackingIdMatch[1].toLowerCase().includes(normalizedSearch)) {
+          if (
+            trackingIdMatch &&
+            trackingIdMatch[1].toLowerCase().includes(normalizedSearch)
+          ) {
             results.push({
               path: filePath,
               status: status,
@@ -70,7 +72,10 @@ function findTaskFiles(tasksPath, searchTerm) {
               matchType: 'tracking_id',
               trackingId: trackingIdMatch[1].trim(),
             });
-          } else if (summaryMatch && summaryMatch[1].toLowerCase().includes(normalizedSearch)) {
+          } else if (
+            summaryMatch &&
+            summaryMatch[1].toLowerCase().includes(normalizedSearch)
+          ) {
             results.push({
               path: filePath,
               status: status,

@@ -64,7 +64,9 @@ function findProjectConfig(projectName) {
         config: config,
       };
     } catch (error) {
-      throw new Error(`Failed to parse project config at ${configPath}: ${error.message}`);
+      throw new Error(
+        `Failed to parse project config at ${configPath}: ${error.message}`,
+      );
     }
   }
 
@@ -96,7 +98,7 @@ function getCurrentProject(workingDir = null) {
   let availableProjects = [];
 
   if (fs.existsSync(worklogsPath)) {
-    availableProjects = fs.readdirSync(worklogsPath).filter(name => {
+    availableProjects = fs.readdirSync(worklogsPath).filter((name) => {
       const configPath = path.join(worklogsPath, name, 'project.json');
       return fs.existsSync(configPath);
     });
@@ -124,11 +126,13 @@ if (require.main === module) {
 
       if (result.availableProjects.length > 0) {
         console.error(`\nAvailable projects:`);
-        result.availableProjects.forEach(name => {
+        result.availableProjects.forEach((name) => {
           console.error(`  - ${name}`);
         });
       } else {
-        console.error(`\nNo projects configured. Run setup to create a project.`);
+        console.error(
+          `\nNo projects configured. Run setup to create a project.`,
+        );
       }
 
       process.exit(1);
@@ -141,4 +145,8 @@ if (require.main === module) {
   }
 }
 
-module.exports = { getCurrentProject, getProjectNameFromPath, getProjectNameFromGit };
+module.exports = {
+  getCurrentProject,
+  getProjectNameFromPath,
+  getProjectNameFromGit,
+};

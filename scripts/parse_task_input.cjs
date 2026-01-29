@@ -19,7 +19,11 @@
  */
 
 function parseTaskInput(input) {
-  const lines = input.trim().split('\n').map(line => line.trim()).filter(Boolean);
+  const lines = input
+    .trim()
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
   const tasks = [];
 
   let currentTask = null;
@@ -71,7 +75,9 @@ function parseTaskInput(input) {
     if (currentTask.summary) {
       tasks.push(currentTask);
     } else {
-      console.error(`Warning: JIRA ID ${currentTask.trackingId} has no summary`);
+      console.error(
+        `Warning: JIRA ID ${currentTask.trackingId} has no summary`,
+      );
     }
   }
 
@@ -86,7 +92,9 @@ if (require.main === module) {
     console.error('Usage: node parse_task_input.cjs <input-text>');
     console.error('');
     console.error('Example:');
-    console.error('  node parse_task_input.cjs "PROJ-123\\n[FE] Dashboard: Automations"');
+    console.error(
+      '  node parse_task_input.cjs "PROJ-123\\n[FE] Dashboard: Automations"',
+    );
     process.exit(1);
   }
 

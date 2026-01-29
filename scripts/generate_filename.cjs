@@ -17,9 +17,9 @@ function toKebabCase(str) {
     .trim()
     .toLowerCase()
     .replace(/[^\w\s-]/g, '') // Remove special chars except spaces and hyphens
-    .replace(/\s+/g, '-')      // Replace spaces with hyphens
-    .replace(/-+/g, '-')       // Replace multiple hyphens with single hyphen
-    .replace(/^-|-$/g, '');    // Remove leading/trailing hyphens
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
 }
 
 function generateFilename(summary, trackingId = null) {
@@ -57,7 +57,9 @@ if (require.main === module) {
   }
 
   if (!summary) {
-    console.error('Usage: node generate_filename.cjs [--tracking-id ID] <summary>');
+    console.error(
+      'Usage: node generate_filename.cjs [--tracking-id ID] <summary>',
+    );
     process.exit(1);
   }
 
