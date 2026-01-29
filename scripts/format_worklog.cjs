@@ -16,7 +16,7 @@ function formatWorklog(filePath) {
       process.exit(1);
     }
 
-    const prettierConfig = path.join(__dirname, '../assets/.prettierrc.js');
+    const prettierConfig = path.join(__dirname, '../.prettierrc.js');
 
     // Run prettier on the file
     execSync(`npx prettier --write --config "${prettierConfig}" "${filePath}"`, {

@@ -10,6 +10,7 @@ Manages developer tasks and daily work logs with automatic git workflow integrat
 ## Overview
 
 Code-diary helps developers:
+
 - Track tasks with JIRA/GitHub integration
 - Switch between tasks with automatic branch management
 - Log daily work based on git commits
@@ -27,11 +28,13 @@ Code-diary automatically detects the current project from the working directory 
 3. **Manual fallback**: Lists available projects if detection fails
 
 **Usage:**
+
 - Run code-diary commands from within your project directory
 - Project is automatically identified and configured
 - No need to specify project name in commands
 
 **Example:**
+
 ```bash
 cd ~/workspace/my-project
 # All code-diary commands now use "my-project" project configuration
@@ -50,6 +53,7 @@ Location: `~/.claude/code-diary/config.json`
 **Auto-creation:** If the config file doesn't exist, it will be automatically created with defaults when any code-diary script is run.
 
 **Configuration options:**
+
 ```json
 {
   "worklogsPath": "~/.claude/worklogs"
@@ -101,6 +105,7 @@ For detailed configuration options, see `references/project_config.md`.
 ## Directory Structure
 
 Code-diary uses a hybrid structure:
+
 - **Tasks**: Project-specific (organized by project)
 - **Worklogs**: Global (unified across all projects)
 
@@ -148,12 +153,14 @@ This allows unified daily logging across all projects while keeping tasks organi
 **Examples:**
 
 Auto-detect settings from current directory:
+
 ```bash
 cd ~/workspace/my-project
 node scripts/init_project.cjs my-project --auto-detect
 ```
 
 Manual configuration:
+
 ```bash
 node scripts/init_project.cjs my-project \
   --issue-tracker-type jira \
@@ -164,6 +171,7 @@ node scripts/init_project.cjs my-project \
 ```
 
 **Output:**
+
 - Creates `<worklogsPath>/<project>/project.json`
 - Creates `<worklogsPath>/<project>/tasks/{new,working,archived}/`
 - Creates `<worklogsPath>/logs/` (if not exists)
@@ -176,17 +184,20 @@ node scripts/init_project.cjs my-project \
 **Input formats:**
 
 Multi-line with tracking ID:
+
 ```
 PROJ-123
 Dashboard Automations Triggers - Sensors
 ```
 
 One-liner with tracking ID:
+
 ```
 PROJ-123 Dashboard Automations Triggers - Sensors
 ```
 
 Without tracking ID (auto-generates date-based ID):
+
 ```
 Dashboard Automations Triggers - Sensors
 ```
@@ -245,12 +256,14 @@ Dashboard Automations Triggers - Sensors
 
 **Rework branches:**
 If reopening/reworking a task on a different branch:
+
 - Format: `<tracking-id>_<rework-summary>_<rework-count>`
 - Increment rework count for each iteration
 
 ### 4. Logging Daily Work
 
 **Input:**
+
 - Date (optional, defaults to today via `date` command)
 - Work description (or auto-generate from git commits)
 
@@ -281,6 +294,7 @@ If reopening/reworking a task on a different branch:
 9. Format worklog with `scripts/format_worklog.cjs`
 
 **Worklog structure:**
+
 ```markdown
 ---
 month: 2026-01
@@ -291,10 +305,12 @@ month: 2026-01
 ## Week 5
 
 Last Week:
+
 - PROJ-123: Dashboard Automations
 - PROJ-124: Air Quality Sensor
 
 This Week:
+
 - PROJ-125: UC-Presence Support
 
 ### Wed, Jan 28, 2026
@@ -388,8 +404,18 @@ All scripts are in `scripts/` directory:
 
 ## Best Practices
 
-1. **Always format after editing**: Run `format_worklog.cjs` after any manual edits
+1. **Always format after editing**: Run `format_worklog.cjs` after any manual edits, or let your editor auto-format using `.prettierrc.js` in the skill root
 2. **Keep summaries concise**: Task summaries should fit comfortably in branch names (~50 chars)
 3. **Log work daily**: Regular logging makes weekly summaries more accurate
 4. **Clean git history**: Ensure working directory is clean before switching tasks
 5. **Use descriptive commits**: Better commit messages generate better work logs
+
+## Formatting
+
+Code-diary uses Prettier for consistent markdown formatting. The configuration is stored in `.prettierrc.js` at the skill root, which means:
+
+- Your editor can automatically detect and apply formatting
+- The `format_worklog.cjs` script uses the same configuration
+- Consistent formatting across manual edits and automated updates
+
+**Editor setup:** Most editors with Prettier support will automatically detect `.prettierrc.js` and format markdown files on save.
