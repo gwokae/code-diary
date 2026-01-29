@@ -20,6 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { getWorklogsPath } = require('./config.cjs');
 
 function autoDetectSettings(cwd = process.cwd()) {
   const settings = {
@@ -65,7 +66,7 @@ function autoDetectSettings(cwd = process.cwd()) {
 }
 
 function initProject(projectName, options = {}) {
-  const worklogsRoot = path.join(process.env.HOME, '.claude/worklogs');
+  const worklogsRoot = getWorklogsPath();
   const projectPath = path.join(worklogsRoot, projectName);
   const tasksPath = path.join(projectPath, 'tasks');
   const configPath = path.join(projectPath, 'project.json');

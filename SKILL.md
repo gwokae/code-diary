@@ -39,9 +39,47 @@ cd ~/workspace/my-project
 
 If project detection fails, available projects are listed for manual selection.
 
+## Configuration
+
+Code-diary uses a global configuration file to customize paths and settings.
+
+### Global Configuration
+
+Location: `~/.claude/code-diary/config.json`
+
+**Auto-creation:** If the config file doesn't exist, it will be automatically created with defaults when any code-diary script is run.
+
+**Configuration options:**
+```json
+{
+  "worklogsPath": "~/.claude/worklogs"
+}
+```
+
+- **`worklogsPath`**: Base directory for all worklogs and project configurations (default: `~/.claude/worklogs`)
+
+**Managing configuration:**
+
+```bash
+# Show current configuration
+node scripts/config.cjs show
+
+# Get specific value
+node scripts/config.cjs get worklogsPath
+
+# Set custom worklogs path
+node scripts/config.cjs set worklogsPath ~/my-worklogs
+
+# Show config file path
+node scripts/config.cjs path
+
+# Initialize config manually (auto-created on first use)
+node scripts/config.cjs init
+```
+
 ## Project Setup
 
-Each project requires a configuration file at `~/.claude/worklogs/<project-name>/project.json`:
+Each project requires a configuration file at `<worklogsPath>/<project-name>/project.json`:
 
 ```json
 {
@@ -67,7 +105,7 @@ Code-diary uses a hybrid structure:
 - **Worklogs**: Global (unified across all projects)
 
 ```
-~/.claude/worklogs/
+<worklogsPath>/              # Configurable base path (default: ~/.claude/worklogs)
 ├── logs/                    # Global worklog files (cross-project)
 │   ├── 2026-01.md
 │   └── 2026-02.md
@@ -78,6 +116,8 @@ Code-diary uses a hybrid structure:
         ├── working/         # Tasks in progress
         └── archived/        # Completed tasks
 ```
+
+The base path (`<worklogsPath>`) is configurable in `~/.claude/code-diary/config.json`.
 
 This allows unified daily logging across all projects while keeping tasks organized by project.
 
@@ -124,9 +164,9 @@ node scripts/init_project.cjs my-project \
 ```
 
 **Output:**
-- Creates `~/.claude/worklogs/<project>/project.json`
-- Creates `~/.claude/worklogs/<project>/tasks/{new,working,archived}/`
-- Creates `~/.claude/worklogs/logs/` (if not exists)
+- Creates `<worklogsPath>/<project>/project.json`
+- Creates `<worklogsPath>/<project>/tasks/{new,working,archived}/`
+- Creates `<worklogsPath>/logs/` (if not exists)
 - Displays generated configuration
 
 **Note:** If project already exists, script will error. Edit `project.json` manually to update configuration.
@@ -157,7 +197,7 @@ Dashboard Automations Triggers - Sensors
 2. Parse input using `scripts/parse_task_input.cjs`
 3. For each task:
    - Generate filename using `scripts/generate_filename.cjs`
-   - Create task file from `assets/task_template.md` in `~/.claude/worklogs/<project>/tasks/new/`
+   - Create task file from `assets/task_template.md` in `<worklogsPath>/<project>/tasks/new/`
    - Fill frontmatter:
      - `tracking_id`: From input or auto-generated (YYYYMMDD format)
      - `summary`: Task summary
@@ -220,7 +260,7 @@ If reopening/reworking a task on a different branch:
 2. Determine date using `scripts/get_week_info.cjs`
 
 3. Find or create monthly worklog file:
-   - Path: `~/.claude/worklogs/logs/<YYYY-MM>.md` (global worklog)
+   - Path: `<worklogsPath>/logs/<YYYY-MM>.md` (global worklog)
    - If new, create from `assets/worklog_template.md`
    - Use `get_week_info.cjs` to populate headers
 
@@ -310,6 +350,12 @@ This Week:
 ## Helper Scripts
 
 All scripts are in `scripts/` directory:
+
+- **`config.cjs`**: Manage global configuration
+  - Usage: `node config.cjs <command> [args]`
+  - Commands: `show`, `get <key>`, `set <key> <value>`, `path`, `init`
+  - Auto-creates config on first use
+  - Configurable: `worklogsPath`
 
 - **`init_project.cjs`**: Initialize a new project configuration
   - Usage: `node init_project.cjs <project-name> [options]`

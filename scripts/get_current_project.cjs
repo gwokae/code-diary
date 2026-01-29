@@ -19,6 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { getWorklogsPath } = require('./config.cjs');
 
 function getProjectNameFromPath(dirPath) {
   // Get the directory name from the path
@@ -48,7 +49,7 @@ function getProjectNameFromGit(dirPath) {
 }
 
 function findProjectConfig(projectName) {
-  const worklogsRoot = path.join(process.env.HOME, '.claude/worklogs');
+  const worklogsRoot = getWorklogsPath();
   const configPath = path.join(worklogsRoot, projectName, 'project.json');
 
   if (fs.existsSync(configPath)) {
@@ -91,7 +92,7 @@ function getCurrentProject(workingDir = null) {
   }
 
   // Strategy 3: List available projects and suggest
-  const worklogsPath = path.join(process.env.HOME, '.claude/worklogs');
+  const worklogsPath = getWorklogsPath();
   let availableProjects = [];
 
   if (fs.existsSync(worklogsPath)) {

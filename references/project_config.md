@@ -1,6 +1,6 @@
 # Project Configuration
 
-Project configurations define the settings for each project being tracked in code-diary. Configurations are stored in `~/.claude/worklogs/<project-name>/project.json`.
+Project configurations define the settings for each project being tracked in code-diary. Configurations are stored in `<worklogsPath>/<project-name>/project.json` where `<worklogsPath>` is configurable in `~/.claude/code-diary/config.json` (default: `~/.claude/worklogs`).
 
 ## Configuration Schema
 
@@ -68,7 +68,7 @@ Code-diary uses a hybrid structure:
 - **Worklogs**: Global (shared across all projects for unified daily logging)
 
 ```
-~/.claude/worklogs/
+<worklogsPath>/              # Configurable base path (default: ~/.claude/worklogs)
 ├── logs/                    # Global worklog files (cross-project)
 │   ├── 2026-01.md
 │   ├── 2026-02.md
@@ -81,6 +81,9 @@ Code-diary uses a hybrid structure:
         └── archived/        # Completed or abandoned tasks
 ```
 
+The base path (`<worklogsPath>`) is configured in `~/.claude/code-diary/config.json`.
+
 This structure allows:
 - Task management per project (organized by project context)
 - Unified worklog across all projects (single daily log showing work from all projects)
+- Flexible storage location for worklogs and projects
