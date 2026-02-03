@@ -233,8 +233,12 @@ Dashboard Automations Triggers - Sensors
    - If multiple matches, prompt user to select
 
 3. Before switching (if current task exists):
-   - Check for uncommitted changes or untracked files
-   - If found, ask whether to stash changes
+   - Check for uncommitted changes or untracked files with `git status --short`
+   - **IMPORTANT**: If uncommitted changes or untracked files are found:
+     - **MUST warn the user** about uncommitted changes before proceeding
+     - List the modified/untracked files
+     - Ask user to choose: commit changes, stash changes, or cancel
+     - **Never automatically stash** without explicit user confirmation
    - Prompt for work log entry before switching (optional)
 
 4. Move task file to `working/` status if not already there
@@ -269,29 +273,43 @@ If reopening/reworking a task on a different branch:
 
 **Process:**
 
-1. Detect current project using `scripts/get_current_project.cjs`
-2. Determine date using `scripts/get_week_info.cjs`
+**Option 1: Auto-generate from git commits (recommended)**
 
-3. Find or create monthly worklog file:
-   - Path: `<worklogsPath>/logs/<YYYY-MM>.md` (global worklog)
-   - If new, create from `assets/worklog_template.md`
-   - Use `get_week_info.cjs` to populate headers
+Use `scripts/log_commits.cjs` to automatically extract and log work from git commits:
 
-4. Ensure h2 week header exists (ordered desc by week number)
+```bash
+node scripts/log_commits.cjs \
+  --tracking-id PROJ-123 \
+  --summary "Dashboard Automations" \
+  --since "2 days ago"
+```
 
-5. Ensure h3 daily header exists under correct week (ordered desc by date)
+This will:
+- Extract commits from the specified date range
+- Group commits by date
+- Summarize commit messages into work items
+- Create properly formatted entries with correct date ordering
 
-6. Ensure task entry exists in first-level list:
-   - Format: `- <tracking-id>: <summary>`
+**Option 2: Manual logging**
 
-7. Add work content as second-level list items under task entry
+Use `scripts/log_work.cjs` to add work entries manually:
 
-8. To auto-generate work content from commits:
-   - Read recent git commits
-   - Parse commit messages and diffs
-   - Generate concise, meaningful bullet points
+```bash
+node scripts/log_work.cjs \
+  --date 2026-02-03 \
+  --tracking-id PROJ-123 \
+  --summary "Dashboard Automations" \
+  --work "Implemented sensor time range selector" \
+  --work "Added validation for date ranges"
+```
 
-9. Format worklog with `scripts/format_worklog.cjs`
+Both scripts automatically:
+- Ensure h2 week header exists (ordered desc by week number)
+- Ensure h3 daily header exists with format `### YYYY/MM/DD`
+- Maintain date ordering (newest first, descending)
+- Create task entries with format `- <tracking-id>: <summary>`
+- Add work items as second-level list items
+- Format output with `scripts/format_worklog.cjs`
 
 **Worklog structure:**
 
@@ -313,16 +331,21 @@ This Week:
 
 - PROJ-125: UC-Presence Support
 
-### Wed, Jan 28, 2026
+### 2026/01/30
 
 - PROJ-123: Dashboard Automations
   - Implemented sensor time range selector
   - Added validation for date ranges
   - Fixed timezone handling bug
+
+### 2026/01/28
+
 - PROJ-124: Air Quality Sensor
   - Defined TypeScript interfaces
   - Added unit tests
 ```
+
+**Note:** Daily headers use `YYYY/MM/DD` format and are ordered newest to oldest (descending).
 
 ### 5. Archiving Tasks
 
@@ -382,6 +405,18 @@ All scripts are in `scripts/` directory:
   - Usage: `node get_current_project.cjs [working-directory]`
   - Output: JSON object with project config and paths
   - Strategies: directory name → git remote → list available projects
+
+- **`log_work.cjs`**: Add work entries to daily worklog
+  - Usage: `node log_work.cjs --tracking-id <ID> --summary <text> --work <item> [--date <YYYY-MM-DD>]`
+  - Automatically handles date formatting (YYYY/MM/DD) and ordering (descending)
+  - Creates properly structured worklog entries with correct week/day headers
+  - Formats output with prettier
+
+- **`log_commits.cjs`**: Auto-generate work logs from git commits
+  - Usage: `node log_commits.cjs --tracking-id <ID> --summary <text> [--since <date>] [--until <date>]`
+  - Extracts commits from specified date range and groups by date
+  - Summarizes commit messages into work items
+  - Calls `log_work.cjs` for each date with extracted work items
 
 - **`format_worklog.cjs`**: Format markdown files with prettier
   - Usage: `node format_worklog.cjs <file-path>`
