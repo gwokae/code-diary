@@ -107,6 +107,10 @@ function parseWorklog(content) {
     // Daily header (### YYYY/MM/DD)
     if (line.match(/^### \d{4}\/\d{2}\/\d{2}/)) {
       flushBuffer();
+      // Save current task before switching days
+      if (currentTask && currentDay) {
+        currentDay.tasks.push(currentTask);
+      }
       if (currentDay) {
         currentWeek.days.push(currentDay);
       }

@@ -278,17 +278,28 @@ If reopening/reworking a task on a different branch:
 Use `scripts/log_commits.cjs` to automatically extract and log work from git commits:
 
 ```bash
+# Auto-detect JIRA IDs from commit messages
+node scripts/log_commits.cjs --since "2 days ago"
+
+# Search all branches for your commits
+node scripts/log_commits.cjs --since "2 days ago" --all-branches
+
+# Force specific task (for commits without JIRA IDs)
 node scripts/log_commits.cjs \
+  --since "2 days ago" \
   --tracking-id PROJ-123 \
-  --summary "Dashboard Automations" \
-  --since "2 days ago"
+  --summary "Dashboard Automations"
 ```
 
-This will:
-- Extract commits from the specified date range
-- Group commits by date
-- Summarize commit messages into work items
-- Create properly formatted entries with correct date ordering
+**Auto-detection features:**
+- Extracts JIRA IDs from commit messages (e.g., "UNIFIC-10519: feat: add controls")
+- Groups commits by JIRA ID and date automatically
+- Looks up task summaries from existing task files
+- Warns about commits without JIRA IDs
+- Supports `--all-branches` to search across all branches (current author only)
+- Prevents duplicate logging when run multiple times
+
+**Manual override:** Provide `--tracking-id` and `--summary` to force all commits to a specific task
 
 **Option 2: Manual logging**
 
@@ -412,11 +423,13 @@ All scripts are in `scripts/` directory:
   - Creates properly structured worklog entries with correct week/day headers
   - Formats output with prettier
 
-- **`log_commits.cjs`**: Auto-generate work logs from git commits
-  - Usage: `node log_commits.cjs --tracking-id <ID> --summary <text> [--since <date>] [--until <date>]`
-  - Extracts commits from specified date range and groups by date
-  - Summarizes commit messages into work items
-  - Calls `log_work.cjs` for each date with extracted work items
+- **`log_commits.cjs`**: Auto-generate work logs from git commits with JIRA ID detection
+  - Usage: `node log_commits.cjs [--since <date>] [--until <date>] [--all-branches] [--tracking-id <ID>] [--summary <text>]`
+  - Auto-detects JIRA IDs from commit messages and groups by task
+  - Looks up task summaries from existing task files
+  - Supports `--all-branches` to search all branches (current author only)
+  - Prevents duplicate logging when run multiple times
+  - Optional `--tracking-id` and `--summary` to force specific task for all commits
 
 - **`format_worklog.cjs`**: Format markdown files with prettier
   - Usage: `node format_worklog.cjs <file-path>`
