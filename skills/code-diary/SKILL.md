@@ -275,7 +275,7 @@ If reopening/reworking a task on a different branch:
 
 **Option 1: Auto-generate from git commits (recommended)**
 
-Use `scripts/log_commits.cjs` to automatically extract and log work from git commits:
+Use `scripts/log_commits.cjs` to extract commit data for interactive summarization:
 
 ```bash
 # Auto-detect JIRA IDs from commit messages
@@ -293,13 +293,34 @@ node scripts/log_commits.cjs \
 
 **Auto-detection features:**
 - Extracts JIRA IDs from commit messages (e.g., "UNIFIC-10519: feat: add controls")
+- Falls back to branch name extraction if commit message doesn't contain JIRA ID
 - Groups commits by JIRA ID and date automatically
 - Looks up task summaries from existing task files
 - Warns about commits without JIRA IDs
-- Supports `--all-branches` to search across all branches (current author only)
-- Prevents duplicate logging when run multiple times
+- Supports `--all-branches` to search across all branches
+- Always filters by current author to avoid including other people's commits
+- Excludes merge commits (`--no-merges` flag automatically applied)
 
-**Manual override:** Provide `--tracking-id` and `--summary` to force all commits to a specific task
+**Output:**
+The script outputs structured data to temp files in `/tmp/code-diary/`:
+- `<taskId>_<date>_<timestamp>_metadata.json`: Commit metadata (hashes, messages, dates)
+- `<taskId>_<date>_<timestamp>_diff.txt`: Combined diff for all commits
+
+**Interactive workflow:**
+1. User runs `log_commits.cjs` from CLI
+2. Script outputs temp file paths in JSON format
+3. Claude reads the temp files and generates a cohesive paragraph summary
+4. Claude calls `log_work.cjs` to write the summary to the worklog
+5. Claude cleans up temp files with `rm -rf /tmp/code-diary`
+
+**Summary format:**
+Generate a concise technical paragraph (2-4 sentences) that describes:
+- WHAT was changed and WHY
+- Implementation approach and key technical decisions
+- Written in present tense, third person
+
+**Example summary:**
+"This change adds an Edit action to each item in the InterfaceSelector dropdown by introducing an additionalInfo section that is only visible in the popover content. The Edit link navigates to the PAD Designer page for the corresponding panel and is implemented using Link from react-router-dom. Click handling is explicitly prevented from propagating so that selecting Edit does not trigger the dropdown's normal selection behavior or state changes, and custom styling ensures the additional info does not affect the visual active/hover state of the list item."
 
 **Option 2: Manual logging**
 
@@ -423,9 +444,12 @@ All scripts are in `scripts/` directory:
   - Creates properly structured worklog entries with correct week/day headers
   - Formats output with prettier
 
-- **`log_commits.cjs`**: Auto-generate work logs from git commits with JIRA ID detection
-  - Usage: `node log_commits.cjs [--since <date>] [--until <date>] [--all-branches] [--tracking-id <ID>] [--summary <text>]`
-  - Auto-detects JIRA IDs from commit messages and groups by task
+- **`log_commits.cjs`**: Extract commit data for interactive summarization
+  - Usage: `node log_commits.cjs [--since <date>] [--until <date>] [--all-branches] [--tracking-id <ID>] [--summary <text>] [--cwd <path>]`
+  - Auto-detects JIRA IDs from commit messages and branch names
+  - Groups commits by task and date
+  - Outputs metadata and diffs to `/tmp/code-diary/` for Claude to read and summarize
+  - Always filters by current author to avoid including other people's commits
   - Looks up task summaries from existing task files
   - Supports `--all-branches` to search all branches (current author only)
   - Prevents duplicate logging when run multiple times

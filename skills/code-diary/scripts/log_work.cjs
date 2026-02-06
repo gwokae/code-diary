@@ -180,6 +180,41 @@ function compareDates(dateStr1, dateStr2) {
 }
 
 /**
+ * Check if work item is redundant with task summary
+ * Removes common prefixes, normalizes text, and checks for similarity
+ */
+function isRedundantWithSummary(workItem, summary) {
+  // Normalize both strings: lowercase, remove punctuation, trim whitespace
+  const normalize = (str) =>
+    str
+      .toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const normalizedWork = normalize(workItem);
+  const normalizedSummary = normalize(summary);
+
+  // Check if work item is essentially the same as summary
+  if (normalizedWork === normalizedSummary) {
+    return true;
+  }
+
+  // Check if strings are very similar in length (within 80% ratio)
+  const lengthRatio = Math.min(normalizedWork.length, normalizedSummary.length) /
+                      Math.max(normalizedWork.length, normalizedSummary.length);
+
+  // If one contains the other and they're similar in length, consider redundant
+  if (lengthRatio > 0.8 && normalizedWork.length > 10) {
+    if (normalizedSummary.includes(normalizedWork) || normalizedWork.includes(normalizedSummary)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Add or update work entry in the worklog
  */
 function logWork(options) {
@@ -272,8 +307,12 @@ function logWork(options) {
     taskEntry.summary = summary;
   }
 
-  // Add work items
-  for (const workItem of workItems) {
+  // Add work items (skip if redundant with summary)
+  const filteredWorkItems = workItems.filter(
+    (workItem) => !isRedundantWithSummary(workItem, summary),
+  );
+
+  for (const workItem of filteredWorkItems) {
     const workLine = `  - ${workItem}`;
     if (!taskEntry.content.includes(workLine)) {
       taskEntry.content.push(workLine);
@@ -365,4 +404,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { logWork, parseWorklog, formatDateHeader, compareDates };
+module.exports = { logWork, parseWorklog, formatDateHeader, compareDates, isRedundantWithSummary };

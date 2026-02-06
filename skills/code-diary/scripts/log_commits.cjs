@@ -3,6 +3,8 @@
 /**
  * Auto-generate work log entries from git commits with JIRA ID detection
  *
+ * Outputs commit metadata and diffs to temp files for interactive summarization by Claude.
+ *
  * Usage: node log_commits.cjs [options]
  *
  * Options:
@@ -13,24 +15,21 @@
  *   --summary <text>        Force specific summary (optional, looks up from task files)
  *   --cwd <path>            Git repository path (default: current directory)
  *
+ * Output:
+ *   JSON object with temp file paths containing commit metadata and diffs.
+ *   Temp files are written to /tmp/code-diary/ for Claude to read and summarize.
+ *
  * Examples:
- *   # Auto-detect JIRA IDs from commits (recommended)
+ *   # Auto-detect JIRA IDs from commits
  *   node log_commits.cjs --since "2 days ago"
  *
  *   # Search all branches for your commits
  *   node log_commits.cjs --since "2 days ago" --all-branches
- *
- *   # Force specific task (ignores JIRA IDs in commits)
- *   node log_commits.cjs \
- *     --since "2 days ago" \
- *     --tracking-id PROJ-123 \
- *     --summary "Dashboard Automations"
  */
 
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const { logWork } = require('./log_work.cjs');
 const { getWorklogsPath } = require('./config.cjs');
 
 /**
@@ -82,11 +81,13 @@ function getGitAuthor(cwd) {
 }
 
 /**
- * Extract JIRA ID from commit message
+ * Extract JIRA ID from commit message or branch name
+ * Matches patterns: PROJ-123, ABC-456, UNIFIC_10271, etc.
  */
 function extractJiraId(message) {
-  // Match pattern: PROJ-123, ABC-456, etc.
-  const match = message.match(/\b([A-Z]+[-_]\d+)\b/);
+  // Match pattern: PROJ-123, ABC-456, UNIFIC_10271, etc.
+  // Allow word boundary or non-word character before/after
+  const match = message.match(/([A-Z]+[-_]\d+)/);
   return match ? match[1].replace('_', '-') : null;
 }
 
@@ -100,19 +101,22 @@ function getCommitsWithMetadata(options) {
   const sinceDate = since || 'yesterday';
   const untilDate = until || 'now';
 
+  // Always filter by current author to avoid including other people's commits
+  const author = getGitAuthor(cwd);
+
   // Build git log command
-  let gitCmd = 'git log';
+  let gitCmd = 'git log --no-merges';
 
   if (allBranches) {
-    const author = getGitAuthor(cwd);
-    if (author) {
-      gitCmd += ` --all --author="${author}"`;
-    } else {
-      gitCmd += ' --all';
-    }
+    gitCmd += ' --all';
   }
 
-  gitCmd += ` --since="${sinceDate}" --until="${untilDate}" --pretty=format:"%ad|%s" --date=short`;
+  // Add author filter if available
+  if (author) {
+    gitCmd += ` --author="${author}"`;
+  }
+
+  gitCmd += ` --since="${sinceDate}" --until="${untilDate}" --pretty=format:"%H|%ad|%s" --date=short`;
 
   try {
     const gitLog = execSync(gitCmd, {
@@ -129,10 +133,37 @@ function getCommitsWithMetadata(options) {
     const lines = gitLog.split('\n');
 
     for (const line of lines) {
-      const [date, message] = line.split('|');
-      const jiraId = extractJiraId(message);
+      const parts = line.split('|');
+      const hash = parts[0];
+      const date = parts[1];
+      const message = parts.slice(2).join('|'); // Handle messages with | in them
+
+      // Try to extract JIRA ID from commit message first
+      let jiraId = extractJiraId(message);
+
+      // If no JIRA ID in message, try to get it from branch name
+      if (!jiraId) {
+        try {
+          const branches = execSync(`git branch --contains ${hash} --format='%(refname:short)'`, {
+            cwd,
+            encoding: 'utf-8',
+          }).trim().split('\n').filter(b => b.trim());
+
+          // Try to find a branch with JIRA ID (prefer feature branches)
+          for (const branchName of branches) {
+            const branchJiraId = extractJiraId(branchName);
+            if (branchJiraId) {
+              jiraId = branchJiraId;
+              break;
+            }
+          }
+        } catch (error) {
+          // Ignore errors, jiraId remains null
+        }
+      }
 
       commits.push({
+        hash,
         date,
         message,
         jiraId,
@@ -152,7 +183,7 @@ function groupCommitsByTask(commits) {
   const grouped = {};
 
   for (const commit of commits) {
-    const { jiraId, date, message } = commit;
+    const { jiraId, date } = commit;
 
     // Skip commits without JIRA ID
     if (!jiraId) continue;
@@ -165,7 +196,7 @@ function groupCommitsByTask(commits) {
       grouped[jiraId][date] = [];
     }
 
-    grouped[jiraId][date].push(message);
+    grouped[jiraId][date].push(commit);
   }
 
   return grouped;
@@ -222,35 +253,73 @@ function findTaskSummary(trackingId, cwd) {
 }
 
 /**
- * Summarize commit messages into work items
+ * Get combined diff for multiple commits
  */
-function summarizeCommits(commits) {
-  const workItems = [];
+function getCommitsDiff(commits, cwd) {
+  try {
+    // Get diff from first parent of first commit to last commit
+    const hashes = commits.map(c => c.hash);
+    if (hashes.length === 0) return '';
 
-  for (const message of commits) {
-    // Remove JIRA ID prefix
-    let cleaned = message.replace(/^[A-Z]+[-_]\d+:?\s*/, '');
+    const firstCommit = `${hashes[hashes.length - 1]}^`; // Parent of oldest commit
+    const lastCommit = hashes[0]; // Newest commit
 
-    // Remove common prefixes
-    cleaned = cleaned
-      .replace(/^(feat|fix|chore|docs|style|refactor|test|perf):\s*/i, '')
-      .trim();
+    const diff = execSync(`git diff ${firstCommit}..${lastCommit} --stat --patch`, {
+      cwd,
+      encoding: 'utf-8',
+      maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large diffs
+    }).trim();
 
-    // Capitalize first letter
-    if (cleaned.length > 0) {
-      cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-    }
-
-    if (cleaned) {
-      workItems.push(cleaned);
-    }
+    return diff;
+  } catch (error) {
+    console.error(`Warning: Failed to get diff: ${error.message}`);
+    return '';
   }
-
-  return workItems;
 }
 
 /**
- * Log commits as work entries
+ * Write commit data to temp files for interactive summarization
+ */
+function writeCommitDataToTempFiles(taskId, date, commits, taskSummary, cwd) {
+  const timestamp = Date.now();
+  const tempDir = '/tmp/code-diary';
+
+  // Ensure temp directory exists
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+
+  const baseName = `${taskId}_${date}_${timestamp}`;
+  const metadataFile = path.join(tempDir, `${baseName}_metadata.json`);
+  const diffFile = path.join(tempDir, `${baseName}_diff.txt`);
+
+  // Get combined diff
+  const diff = getCommitsDiff(commits, cwd);
+
+  // Write metadata
+  const metadata = {
+    taskId,
+    date,
+    taskSummary,
+    commits: commits.map(c => ({
+      hash: c.hash,
+      date: c.date,
+      message: c.message,
+    })),
+  };
+  fs.writeFileSync(metadataFile, JSON.stringify(metadata, null, 2), 'utf-8');
+
+  // Write diff
+  fs.writeFileSync(diffFile, diff, 'utf-8');
+
+  return {
+    metadataFile,
+    diffFile,
+  };
+}
+
+/**
+ * Analyze commits and output to temp files for interactive summarization
  */
 function logCommits(options) {
   const { trackingId, summary, cwd } = options;
@@ -262,7 +331,7 @@ function logCommits(options) {
     return {
       success: true,
       message: 'No commits found in the specified date range',
-      tasks: [],
+      tempFiles: [],
     };
   }
 
@@ -279,6 +348,8 @@ function logCommits(options) {
     console.error('');
   }
 
+  const tempFiles = [];
+
   // If tracking ID is forced, use it for all commits
   if (trackingId && summary) {
     const commitsByDate = {};
@@ -286,32 +357,29 @@ function logCommits(options) {
       if (!commitsByDate[commit.date]) {
         commitsByDate[commit.date] = [];
       }
-      commitsByDate[commit.date].push(commit.message);
+      commitsByDate[commit.date].push(commit);
     }
 
-    const results = [];
-    for (const [date, messages] of Object.entries(commitsByDate)) {
-      const workItems = summarizeCommits(messages);
-
-      try {
-        logWork({ date, trackingId, summary, workItems });
-        results.push({
-          date,
-          commitCount: messages.length,
-          workItems: workItems.length,
-        });
-      } catch (error) {
-        results.push({
-          date,
-          error: error.message,
-        });
-      }
+    for (const [date, commitsForDate] of Object.entries(commitsByDate)) {
+      const files = writeCommitDataToTempFiles(
+        trackingId,
+        date,
+        commitsForDate,
+        summary,
+        cwd,
+      );
+      tempFiles.push({
+        taskId: trackingId,
+        date,
+        taskSummary: summary,
+        ...files,
+      });
     }
 
     return {
       success: true,
-      message: `Logged commits for 1 task, ${results.length} date(s)`,
-      tasks: [{ trackingId, summary, dates: results }],
+      message: `Generated ${tempFiles.length} temp file(s) for interactive summarization`,
+      tempFiles,
     };
   }
 
@@ -322,13 +390,11 @@ function logCommits(options) {
     return {
       success: true,
       message: 'No commits with JIRA IDs found',
-      tasks: [],
+      tempFiles: [],
     };
   }
 
   // Process each task
-  const taskResults = [];
-
   for (const [jiraId, dateGroups] of Object.entries(grouped)) {
     // Find task summary
     const taskSummary = findTaskSummary(jiraId, cwd);
@@ -338,43 +404,27 @@ function logCommits(options) {
       continue;
     }
 
-    const dateResults = [];
-
-    for (const [date, messages] of Object.entries(dateGroups)) {
-      const workItems = summarizeCommits(messages);
-
-      try {
-        logWork({
-          date,
-          trackingId: jiraId,
-          summary: taskSummary,
-          workItems,
-        });
-
-        dateResults.push({
-          date,
-          commitCount: messages.length,
-          workItems: workItems.length,
-        });
-      } catch (error) {
-        dateResults.push({
-          date,
-          error: error.message,
-        });
-      }
+    for (const [date, commitsForDate] of Object.entries(dateGroups)) {
+      const files = writeCommitDataToTempFiles(
+        jiraId,
+        date,
+        commitsForDate,
+        taskSummary,
+        cwd,
+      );
+      tempFiles.push({
+        taskId: jiraId,
+        date,
+        taskSummary,
+        ...files,
+      });
     }
-
-    taskResults.push({
-      trackingId: jiraId,
-      summary: taskSummary,
-      dates: dateResults,
-    });
   }
 
   return {
     success: true,
-    message: `Logged commits for ${taskResults.length} task(s)`,
-    tasks: taskResults,
+    message: `Generated ${tempFiles.length} temp file(s) for interactive summarization`,
+    tempFiles,
   };
 }
 
