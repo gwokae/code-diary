@@ -302,10 +302,9 @@ function logWork(options) {
       content: [],
     };
     daySection.tasks.push(taskEntry);
-  } else {
-    // Update summary if provided
-    taskEntry.summary = summary;
   }
+  // Note: DO NOT update summary if task already exists
+  // This prevents overwriting when multiple commits for same task on same day
 
   // Add work items (skip if redundant with summary)
   const filteredWorkItems = workItems.filter(
@@ -314,7 +313,27 @@ function logWork(options) {
 
   for (const workItem of filteredWorkItems) {
     const workLine = `  - ${workItem}`;
-    if (!taskEntry.content.includes(workLine)) {
+    // Check if work item already exists (exact match or similar content)
+    const alreadyExists = taskEntry.content.some((existingLine) => {
+      // Exact match
+      if (existingLine === workLine) return true;
+
+      // Similar content check (normalize and compare)
+      const normalize = (str) => str.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const normalizedNew = normalize(workItem);
+      const normalizedExisting = normalize(existingLine.replace(/^\s*-\s*/, ''));
+
+      // If 95% similar in length and one contains the other, consider duplicate
+      const lengthRatio = Math.min(normalizedNew.length, normalizedExisting.length) /
+                          Math.max(normalizedNew.length, normalizedExisting.length);
+      if (lengthRatio > 0.95 && normalizedNew.length > 20) {
+        return normalizedExisting.includes(normalizedNew) || normalizedNew.includes(normalizedExisting);
+      }
+
+      return false;
+    });
+
+    if (!alreadyExists) {
       taskEntry.content.push(workLine);
     }
   }
