@@ -10,19 +10,21 @@
  *   --tracking-id <ID>           Tracking ID (e.g., PROJ-123)
  *   --summary <text>             Task summary
  *   --work <item>                Work item (can be specified multiple times)
+ *   --task <json>                Complete task entry as JSON (can be specified multiple times)
  *
  * Examples:
+ *   # Single task with multiple work items
  *   node log_work.cjs \
  *     --tracking-id PROJ-123 \
  *     --summary "Dashboard Automations" \
  *     --work "Implemented sensor time range selector" \
  *     --work "Added validation for date ranges"
  *
+ *   # Multiple tasks in one call (recommended to avoid race conditions)
  *   node log_work.cjs \
  *     --date 2026-02-02 \
- *     --tracking-id PROJ-124 \
- *     --summary "Air Quality Sensor" \
- *     --work "Fixed device state handling"
+ *     --task '{"trackingId":"PROJ-123","summary":"Dashboard","workItems":["Feature A"]}' \
+ *     --task '{"trackingId":"PROJ-124","summary":"Sensor","workItems":["Feature B"]}'
  */
 
 const fs = require('fs');
@@ -40,6 +42,7 @@ function parseArgs(argv) {
     trackingId: null,
     summary: null,
     workItems: [],
+    tasks: [], // Array of {trackingId, summary, workItems}
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -53,6 +56,13 @@ function parseArgs(argv) {
       args.summary = argv[++i];
     } else if (arg === '--work' && i + 1 < argv.length) {
       args.workItems.push(argv[++i]);
+    } else if (arg === '--task' && i + 1 < argv.length) {
+      try {
+        const taskData = JSON.parse(argv[++i]);
+        args.tasks.push(taskData);
+      } catch (error) {
+        throw new Error(`Invalid JSON for --task: ${error.message}`);
+      }
     }
   }
 
@@ -89,6 +99,13 @@ function parseWorklog(content) {
     // Week header (## Week N)
     if (line.match(/^## Week \d+/)) {
       flushBuffer();
+      // Save current task and day before switching weeks
+      if (currentTask && currentDay) {
+        currentDay.tasks.push(currentTask);
+      }
+      if (currentDay && currentWeek) {
+        currentWeek.days.push(currentDay);
+      }
       if (currentWeek) {
         sections.push(currentWeek);
       }
@@ -215,81 +232,10 @@ function isRedundantWithSummary(workItem, summary) {
 }
 
 /**
- * Add or update work entry in the worklog
+ * Add a single task to day section
  */
-function logWork(options) {
-  const { date, trackingId, summary, workItems } = options;
-
-  // Validate required fields
-  if (!trackingId || !summary || workItems.length === 0) {
-    throw new Error(
-      'Missing required fields: --tracking-id, --summary, and at least one --work item are required',
-    );
-  }
-
-  // Get date info
-  const dateStr = date || new Date().toISOString().slice(0, 10);
-  const weekInfo = getWeekInfo(dateStr);
-  const dailyHeader = formatDateHeader(dateStr);
-
-  // Get worklog file path
-  const worklogsPath = getWorklogsPath();
-  const logsDir = path.join(worklogsPath, 'logs');
-  const worklogFile = path.join(logsDir, `${weekInfo.month}.md`);
-
-  // Ensure logs directory exists
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
-  }
-
-  // Read or create worklog file
-  let content = '';
-  if (fs.existsSync(worklogFile)) {
-    content = fs.readFileSync(worklogFile, 'utf-8');
-  } else {
-    // Create new worklog file
-    content = `# ${weekInfo.month.replace('-', '/')} Contribution log\n`;
-  }
-
-  // Parse worklog
-  const sections = parseWorklog(content);
-
-  // Find or create week section
-  let weekSection = sections.find(
-    (s) => s.type === 'week' && s.weekNumber === weekInfo.weekNumber,
-  );
-
-  if (!weekSection) {
-    weekSection = {
-      type: 'week',
-      header: `## ${weekInfo.weekHeader}`,
-      weekNumber: weekInfo.weekNumber,
-      content: ['', 'Last week:', '', 'This week:', ''],
-      days: [],
-    };
-    sections.push(weekSection);
-    // Sort weeks by week number (descending)
-    sections.sort((a, b) => {
-      if (a.type !== 'week' || b.type !== 'week') return 0;
-      return b.weekNumber - a.weekNumber;
-    });
-  }
-
-  // Find or create day section
-  let daySection = weekSection.days.find((d) => d.date === dailyHeader);
-
-  if (!daySection) {
-    daySection = {
-      type: 'day',
-      header: `### ${dailyHeader}`,
-      date: dailyHeader,
-      content: [],
-      tasks: [],
-    };
-    weekSection.days.push(daySection);
-    // Sort days by date (descending - newest first)
-    weekSection.days.sort((a, b) => compareDates(a.date, b.date));
-  }
+function addTaskToDay(daySection, taskData) {
+  const { trackingId, summary, workItems } = taskData;
 
   // Find or create task entry
   let taskEntry = daySection.tasks.find((t) => t.trackingId === trackingId);
@@ -337,6 +283,99 @@ function logWork(options) {
       taskEntry.content.push(workLine);
     }
   }
+}
+
+/**
+ * Add or update work entries in the worklog
+ * Supports adding multiple tasks in a single call to avoid race conditions
+ */
+function logWork(options) {
+  const { date, trackingId, summary, workItems, tasks } = options;
+
+  // Determine which mode: single task or multiple tasks
+  const tasksToAdd = [];
+
+  if (tasks && tasks.length > 0) {
+    // Multiple tasks mode
+    tasksToAdd.push(...tasks);
+  } else {
+    // Single task mode (legacy)
+    if (!trackingId || !summary || workItems.length === 0) {
+      throw new Error(
+        'Missing required fields: --tracking-id, --summary, and at least one --work item are required',
+      );
+    }
+    tasksToAdd.push({ trackingId, summary, workItems });
+  }
+
+  // Get date info
+  const dateStr = date || new Date().toISOString().slice(0, 10);
+  const weekInfo = getWeekInfo(dateStr);
+  const dailyHeader = formatDateHeader(dateStr);
+
+  // Get worklog file path
+  const worklogsPath = getWorklogsPath();
+  const logsDir = path.join(worklogsPath, 'logs');
+  const worklogFile = path.join(logsDir, `${weekInfo.month}.md`);
+
+  // Ensure logs directory exists
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+
+  // Read or create worklog file
+  let content = '';
+  if (fs.existsSync(worklogFile)) {
+    content = fs.readFileSync(worklogFile, 'utf-8');
+  } else {
+    // Create new worklog file
+    content = `# ${weekInfo.month.replace('-', '/')} Contribution log\n`;
+  }
+
+  // Parse worklog
+  const sections = parseWorklog(content);
+
+  // Find or create week section
+  let weekSection = sections.find(
+    (s) => s.type === 'week' && s.weekNumber === weekInfo.weekNumber,
+  );
+
+  if (!weekSection) {
+    weekSection = {
+      type: 'week',
+      header: `## ${weekInfo.weekHeader}`,
+      weekNumber: weekInfo.weekNumber,
+      content: [],
+      days: [],
+    };
+    sections.push(weekSection);
+    // Sort weeks by week number (descending)
+    sections.sort((a, b) => {
+      if (a.type !== 'week' || b.type !== 'week') return 0;
+      return b.weekNumber - a.weekNumber;
+    });
+  }
+
+  // Find or create day section
+  let daySection = weekSection.days.find((d) => d.date === dailyHeader);
+
+  if (!daySection) {
+    daySection = {
+      type: 'day',
+      header: `### ${dailyHeader}`,
+      date: dailyHeader,
+      content: [],
+      tasks: [],
+    };
+    weekSection.days.push(daySection);
+    // Sort days by date (descending - newest first)
+    weekSection.days.sort((a, b) => compareDates(a.date, b.date));
+  }
+
+  // Add all tasks to the day section
+  for (const taskData of tasksToAdd) {
+    addTaskToDay(daySection, taskData);
+  }
 
   // Rebuild content
   let output = [];
@@ -382,9 +421,7 @@ function logWork(options) {
     worklogFile,
     date: dateStr,
     dailyHeader,
-    trackingId,
-    summary,
-    workItems,
+    tasks: tasksToAdd,
   };
 }
 
@@ -394,15 +431,19 @@ if (require.main === module) {
 
   try {
     const result = logWork(args);
+    const message =
+      result.tasks.length === 1
+        ? `Added work entry for ${result.tasks[0].trackingId} on ${result.date}`
+        : `Added ${result.tasks.length} work entries on ${result.date}`;
+
     console.log(
       JSON.stringify(
         {
           success: true,
-          message: `Added work entry for ${result.trackingId} on ${result.date}`,
+          message,
           worklogFile: result.worklogFile,
-          trackingId: result.trackingId,
-          summary: result.summary,
-          workItems: result.workItems,
+          date: result.date,
+          tasks: result.tasks,
         },
         null,
         2,
@@ -423,4 +464,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { logWork, parseWorklog, formatDateHeader, compareDates, isRedundantWithSummary };
+module.exports = { logWork, addTaskToDay, parseWorklog, formatDateHeader, compareDates, isRedundantWithSummary };

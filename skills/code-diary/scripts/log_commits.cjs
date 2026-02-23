@@ -116,7 +116,25 @@ function getCommitsWithMetadata(options) {
     gitCmd += ` --author="${author}"`;
   }
 
-  gitCmd += ` --since="${sinceDate}" --until="${untilDate}" --pretty=format:"%H|%ad|%s" --date=short`;
+  // Use --after/--before instead of --since/--until for better timezone handling
+  // If date looks like YYYY-MM-DD, make it inclusive of the entire day
+  let afterParam = sinceDate;
+  let beforeParam = untilDate;
+
+  // If since looks like a date (YYYY-MM-DD), start from 00:00:00
+  if (sinceDate && /^\d{4}-\d{2}-\d{2}$/.test(sinceDate)) {
+    afterParam = `${sinceDate} 00:00:00`;
+  }
+
+  // If until looks like a date (YYYY-MM-DD), end at 23:59:59 (next day 00:00:00)
+  if (untilDate && /^\d{4}-\d{2}-\d{2}$/.test(untilDate)) {
+    // Parse the date and add one day to make it inclusive
+    const date = new Date(untilDate);
+    date.setDate(date.getDate() + 1);
+    beforeParam = date.toISOString().split('T')[0] + ' 00:00:00';
+  }
+
+  gitCmd += ` --after="${afterParam}" --before="${beforeParam}" --pretty=format:"%H|%ad|%s" --date=short`;
 
   try {
     const gitLog = execSync(gitCmd, {

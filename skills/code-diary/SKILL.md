@@ -336,7 +336,7 @@ node scripts/log_work.cjs \
 ```
 
 Both scripts automatically:
-- Ensure h2 week header exists (ordered desc by week number)
+- Ensure h2 week header exists (ordered desc by week number, without week summary sections)
 - Ensure h3 daily header exists with format `### YYYY/MM/DD`
 - Maintain date ordering (newest first, descending)
 - Create task entries with format `- <tracking-id>: <summary>`
@@ -354,15 +354,6 @@ month: 2026-01
 
 ## Week 5
 
-Last Week:
-
-- PROJ-123: Dashboard Automations
-- PROJ-124: Air Quality Sensor
-
-This Week:
-
-- PROJ-125: UC-Presence Support
-
 ### 2026/01/30
 
 - PROJ-123: Dashboard Automations
@@ -376,6 +367,8 @@ This Week:
   - Defined TypeScript interfaces
   - Added unit tests
 ```
+
+**Note:** Week headers are created without "Last Week:" and "This Week:" sections. Use the `weekly_summary.cjs` script to generate weekly summaries if needed.
 
 **Note:** Daily headers use `YYYY/MM/DD` format and are ordered newest to oldest (descending).
 
@@ -393,7 +386,9 @@ This Week:
 
 **Output:** Confirm task archived with filename.
 
-### 6. Weekly Summary
+### 6. Weekly Summary (Optional)
+
+**Note:** Weekly summaries are optional. The `weekly_summary.cjs` script can generate "Last Week:" sections if needed, but by default, week headers are created without these sections.
 
 **Input:** Date (optional, defaults to today)
 
@@ -401,20 +396,15 @@ This Week:
 
 1. Detect current project using `scripts/get_current_project.cjs`
 2. Determine date and week using `scripts/get_week_info.cjs`
-
 3. Find monthly worklog file for the date
-
 4. Locate the week header
-
 5. Compose "Last Week" section:
-   - Collect all daily work entries from previous 7 days
+   - Look back 7 days from the given date
+   - Collect all daily work entries from those 7 days (across all weeks)
    - Extract unique tracking IDs and summaries
    - Format: `- <tracking-id>: <summary>`
    - Remove duplicates
-
-6. Keep existing "This Week" section (populated when adding tasks)
-
-7. Format worklog with `scripts/format_worklog.cjs`
+6. Format worklog with `scripts/format_worklog.cjs`
 
 **Output:** Display weekly summary content.
 
