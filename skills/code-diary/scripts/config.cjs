@@ -11,10 +11,20 @@ const ENV_VAR = 'CODE_DIARY_PATH';
 const DEFAULT_PATH = path.join(process.env.HOME, 'workspace/worklogs');
 
 /**
+ * Expand leading tilde to home directory
+ */
+function expandPath(p) {
+  if (p && p.startsWith('~/')) {
+    return path.join(process.env.HOME, p.slice(2));
+  }
+  return p;
+}
+
+/**
  * Get the worklogs base path from environment or default
  */
 function getWorklogsPath() {
-  return process.env[ENV_VAR] || DEFAULT_PATH;
+  return expandPath(process.env[ENV_VAR] || DEFAULT_PATH);
 }
 
 /**

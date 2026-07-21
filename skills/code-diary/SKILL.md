@@ -216,8 +216,8 @@ Dashboard Automations Triggers - Sensors
      - `branch`: Generated from filename using project's `featureBranchRule`
      - `created`: Current ISO datetime with timezone
      - `project`: Auto-detected project name
-   - Add task to current week's "This Week" section in worklog
 4. Format files with `scripts/format_worklog.cjs`
+5. Refresh the current week's "This week:" banner by running Workflow 6 (`compose weekly`) — the banner is derived from `new/` + `working/`, so adding a task means the next `compose weekly` will pick it up automatically. Do not edit the worklog directly from this workflow.
 
 **Output:** Confirm tasks created with filenames and locations.
 
@@ -249,10 +249,16 @@ Dashboard Automations Triggers - Sensors
    - Ensure working directory is clean
    - Check if branch exists:
      - If exists: Switch to branch
-     - If not exists:
-       - Switch to main branch
-       - Pull latest changes
-       - Create new branch from main
+     - If not exists (creating a new branch):
+       - **`git fetch` first** — never branch from a stale local ref.
+       - **Branch from `origin/<mainBranch>` (99% of the time
+         `origin/develop`), NOT the local `develop` and NOT the currently
+         checked-out branch.** Create with an explicit base, e.g.
+         `git fetch && git checkout -b <new-branch> origin/develop`.
+       - **If the base would be anything other than `origin/<mainBranch>`**
+         (e.g. stacking on another feature branch), **STOP and prompt the
+         user** to confirm the base before creating. Branching off a stale or
+         unmerged feature branch is the #1 cause of avoidable merge conflicts.
 
 7. Format task file with `scripts/format_worklog.cjs`
 
@@ -263,6 +269,27 @@ If reopening/reworking a task on a different branch:
 
 - Format: `<tracking-id>_<rework-summary>_<rework-count>`
 - Increment rework count for each iteration
+- **Still branch from `origin/develop`, not the old feature branch.** See the
+  squash-merge caveat below — the previous round's code is almost always
+  already in `develop`, so basing the rework on `origin/develop` avoids
+  re-introducing duplicate commits and the conflicts they cause.
+
+**Squash-merge caveat — "unmerged-looking" feature branches:**
+This project **squashes and rebases** feature branches on merge in GitHub.
+Consequences the workflow MUST account for:
+
+- `git branch --merged develop` will **not** list a feature branch that was
+  squash-merged — its individual commits never land verbatim on `develop`. A
+  branch showing as "not merged" does **NOT** mean its work is missing; the
+  code is almost always already in `develop` under a single squashed commit.
+- **Do not** decide "the prior work is unmerged, so I must branch off the old
+  feature branch to keep it." That reasoning is what causes duplicate commits
+  and large conflicts. Instead, `git fetch` and branch from `origin/develop`;
+  verify the prior work is present by checking `develop`'s content/history
+  (e.g. `git log origin/develop --grep <TICKET>` or inspecting the files), not
+  by `git branch --merged`.
+- Only preserve/rebuild prior commits when you have **confirmed the code is
+  genuinely absent** from `origin/develop`.
 
 ### 4. Logging Daily Work
 
@@ -310,8 +337,9 @@ The script outputs structured data to temp files in `/tmp/code-diary/`:
 1. User runs `log_commits.cjs` from CLI
 2. Script outputs temp file paths in JSON format
 3. Claude reads the temp files and generates a cohesive paragraph summary
-4. Claude calls `log_work.cjs` to write the summary to the worklog
-5. Claude cleans up temp files with `rm -rf /tmp/code-diary`
+4. Claude **manually adds the entry using Edit tool** (see "Known Issue" below for why)
+5. Claude runs `format_worklog.cjs` to format the file
+6. Claude cleans up temp files with `rm -rf /tmp/code-diary`
 
 **Summary format:**
 Generate a concise technical paragraph (2-4 sentences) that describes:
@@ -322,7 +350,33 @@ Generate a concise technical paragraph (2-4 sentences) that describes:
 **Example summary:**
 "This change adds an Edit action to each item in the InterfaceSelector dropdown by introducing an additionalInfo section that is only visible in the popover content. The Edit link navigates to the PAD Designer page for the corresponding panel and is implemented using Link from react-router-dom. Click handling is explicitly prevented from propagating so that selecting Edit does not trigger the dropdown's normal selection behavior or state changes, and custom styling ensures the additional info does not affect the visual active/hover state of the list item."
 
-**Option 2: Manual logging**
+**IMPORTANT: Known Issue with log_work.cjs**
+
+The `log_work.cjs` script has aggressive duplicate detection (lines 256-285) that can silently skip adding entries when it detects similar content. This is particularly problematic for "log contribution" workflows where:
+- Multiple work items for the same task ID on the same day
+- Similar work descriptions that trigger false-positive duplicate detection
+- Updating entries that already exist in the worklog
+
+**Recommended approach for "log contribution":**
+1. Use `log_commits.cjs` to extract commit metadata and diffs
+2. Read the temp files and generate the summary
+3. **Manually add the entry using the Edit tool** instead of calling `log_work.cjs`
+4. Use Edit to insert the new entry in the correct location (under the proper date header)
+5. Run `format_worklog.cjs` to format the file
+6. Clean up temp files with `rm -rf /tmp/code-diary`
+
+This manual approach provides:
+- Full control over what gets added
+- No silent filtering or skipping of entries
+- Ability to verify the entry was actually added
+- More reliable for complex logging scenarios
+
+**When to still use log_work.cjs:**
+- Simple, one-off logging of clearly unique work items
+- Automated scripts where duplicate detection is desired
+- When you're confident the entry is new and won't be filtered
+
+**Option 2: Manual logging with log_work.cjs**
 
 Use `scripts/log_work.cjs` to add work entries manually:
 
@@ -336,12 +390,14 @@ node scripts/log_work.cjs \
 ```
 
 Both scripts automatically:
-- Ensure h2 week header exists (ordered desc by week number, without week summary sections)
+- Ensure h2 week header exists (ordered desc by week number)
 - Ensure h3 daily header exists with format `### YYYY/MM/DD`
 - Maintain date ordering (newest first, descending)
 - Create task entries with format `- <tracking-id>: <summary>`
 - Add work items as second-level list items
 - Format output with `scripts/format_worklog.cjs`
+
+The week's "Last Week:" / "This week:" banner sections are managed by Workflow 6 (`compose weekly`), not by these per-day scripts. Run `compose weekly` whenever the active task list changes or you want to refresh the recap.
 
 **Worklog structure:**
 
@@ -368,7 +424,7 @@ month: 2026-01
   - Added unit tests
 ```
 
-**Note:** Week headers are created without "Last Week:" and "This Week:" sections. Use the `weekly_summary.cjs` script to generate weekly summaries if needed.
+**Note:** Per-day logging scripts only manage the `### YYYY/MM/DD` daily entries. The "Last Week:" / "This week:" banner under `## Week N` is maintained separately by Workflow 6 (`compose weekly`).
 
 **Note:** Daily headers use `YYYY/MM/DD` format and are ordered newest to oldest (descending).
 
@@ -386,9 +442,9 @@ month: 2026-01
 
 **Output:** Confirm task archived with filename.
 
-### 6. Weekly Summary (Optional)
+### 6. Weekly Summary
 
-**Note:** Weekly summaries are optional. The `weekly_summary.cjs` script can generate "Last Week:" sections if needed, but by default, week headers are created without these sections.
+**When to use:** Run on `compose weekly` to add or refresh the recap + plan banner at the top of the current week's section.
 
 **Input:** Date (optional, defaults to today)
 
@@ -398,13 +454,49 @@ month: 2026-01
 2. Determine date and week using `scripts/get_week_info.cjs`
 3. Find monthly worklog file for the date
 4. Locate the week header
-5. Compose "Last Week" section:
+5. **Compose "Last Week:" section** (recap of recent work — what was DONE):
    - Look back 7 days from the given date
-   - Collect all daily work entries from those 7 days (across all weeks)
-   - Extract unique tracking IDs and summaries
-   - Format: `- <tracking-id>: <summary>`
-   - Remove duplicates
-6. Format worklog with `scripts/format_worklog.cjs`
+   - Collect daily work entries from those 7 days (across week boundaries)
+   - For each tracking ID found, take its cleaned summary
+   - Strip bracket prefixes from summaries (e.g. `[FE]`, `[BE]`, `[QA]`, `[FE-review]`) — they add noise in a summary list
+   - Format: `- <tracking-id>: <cleaned-summary>`
+   - Remove duplicates, preserve first-seen order
+6. **Compose "This week:" section** (forward-looking — what's PLANNED or in progress):
+   - List every task file currently in `<worklogsPath>/<project>/tasks/working/` and `<worklogsPath>/<project>/tasks/new/`
+   - Read each file's frontmatter `tracking_id` and `summary`
+   - Strip bracket prefixes from the summary
+   - Format: `- <tracking-id>: <cleaned-summary>`
+   - Sort by tracking ID for stable ordering
+   - **Always emit this section.** If `working/` + `new/` are both empty, emit `This week:` with an empty bullet list so the empty backlog is visible rather than hidden by omission.
+   - Exclude `archived/` tasks — those belong in "Last Week:" recap via their daily entries, not the active plan.
+7. Insert both sections immediately after the `## Week N` header, before the first `### YYYY/MM/DD` entry. If the sections already exist, replace them in-place (do not duplicate).
+8. Format worklog with `scripts/format_worklog.cjs`
+
+**Output template:**
+
+```markdown
+## Week 22
+
+Last Week:
+
+- TICKET-123: Cleaned summary
+- TICKET-124: Another summary
+
+This week:
+
+- TICKET-125: Active task summary
+- TICKET-126: Another active task
+
+### 2026/05/27
+
+- ...
+```
+
+**Why both sections are mandatory:**
+
+- "Last Week" tells the reader what shipped recently — useful for retros and standups.
+- "This week" tells the reader what's on the plate now — derived from the filesystem (`new/` + `working/`) so it stays accurate without manual maintenance.
+- Together they give a 1-glance answer to "what's the state of this week" at the top of the section, without scrolling through every daily entry.
 
 **Output:** Display weekly summary content.
 
