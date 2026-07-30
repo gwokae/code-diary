@@ -64,31 +64,41 @@ Git repository settings.
 }
 ```
 
-## Directory Structure
+## Global Configuration (`config.cjs`)
 
-Code-diary uses a hybrid structure:
+Code-diary also uses a global configuration file to customize paths and settings.
 
-- **Tasks**: Project-specific (each project has its own tasks)
-- **Worklogs**: Global (shared across all projects for unified daily logging)
+Location: `~/.claude/skills/code-diary/config.json`
 
-```
-<worklogsPath>/              # Configurable base path (default: ~/.claude/worklogs)
-├── logs/                    # Global worklog files (cross-project)
-│   ├── 2026-01.md
-│   ├── 2026-02.md
-│   └── ...
-└── <project-name>/
-    ├── project.json         # Project configuration
-    └── tasks/
-        ├── new/             # New tasks not yet started
-        ├── working/         # Tasks currently in progress
-        └── archived/        # Completed or abandoned tasks
+**Auto-creation:** If the config file doesn't exist, it will be automatically created with defaults when any code-diary script is run.
+
+**Configuration options:**
+
+```json
+{
+  "worklogsPath": "~/.claude/worklogs"
+}
 ```
 
-The base path (`<worklogsPath>`) is configured in `~/.claude/skills/code-diary/config.json`.
+- **`worklogsPath`**: Base directory for all worklogs and project configurations (default: `~/.claude/worklogs`)
 
-This structure allows:
+**Managing configuration:**
 
-- Task management per project (organized by project context)
-- Unified worklog across all projects (single daily log showing work from all projects)
-- Flexible storage location for worklogs and projects
+```bash
+# Show current configuration
+node scripts/config.cjs show
+
+# Get specific value
+node scripts/config.cjs get worklogsPath
+
+# Set custom worklogs path
+node scripts/config.cjs set worklogsPath ~/my-worklogs
+
+# Show config file path
+node scripts/config.cjs path
+
+# Initialize config manually (auto-created on first use)
+node scripts/config.cjs init
+```
+
+For the overall directory layout (tasks vs. worklogs), see "Directory Structure" in `SKILL.md`.
