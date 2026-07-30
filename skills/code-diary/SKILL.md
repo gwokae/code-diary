@@ -1,6 +1,6 @@
 ---
 name: code-diary
-description: Developer task management and work logging system. Use when setting up projects, managing development tasks (add, switch, archive), tracking work progress, logging daily work with git commits, or generating weekly summaries. Integrates with JIRA/GitHub issue trackers and git workflows. Triggers include "setup project", "add project", "initialize project", "add task", "switch to task", "start task", "log work", "log daily work", "weekly summary", "archive task".
+description: Developer task management and work logging system. Use to add a project, add a task, switch tasks, log work from git commits, archive a task, or generate a weekly summary. Integrates with JIRA, GitHub, and Linear issue trackers via git workflows.
 ---
 
 # Code Diary
@@ -11,7 +11,7 @@ Manages developer tasks and daily work logs with automatic git workflow integrat
 
 Code-diary helps developers:
 
-- Track tasks with JIRA/GitHub integration
+- Track tasks with JIRA/GitHub/Linear integration
 - Switch between tasks with automatic branch management
 - Log daily work based on git commits
 - Generate weekly summaries
@@ -40,7 +40,7 @@ If project detection fails, available projects are listed for manual selection.
 Every workflow below follows the same bookends, so the individual workflow references don't repeat them:
 
 - **Start:** detect the current project with `scripts/get_current_project.cjs`
-- **End:** format the touched worklog/task file with `scripts/format_worklog.cjs`
+- **End:** format the touched worklog/task file with `scripts/format_worklog.cjs` (uses the same `.prettierrc.js` at the skill root that editors pick up automatically, so manual edits stay consistent too)
 
 ## Configuration
 
@@ -110,18 +110,6 @@ Read [references/weekly_summary.md](./references/weekly_summary.md) before execu
 
 ## Best Practices
 
-1. **Always format after editing**: Run `format_worklog.cjs` after any manual edits, or let your editor auto-format using `.prettierrc.js` in the skill root
-2. **Keep summaries concise**: Task summaries should fit comfortably in branch names (~50 chars)
-3. **Log work daily**: Regular logging makes weekly summaries more accurate
-4. **Clean git history**: Ensure working directory is clean before switching tasks
-5. **Use descriptive commits**: Better commit messages generate better work logs
-
-## Formatting
-
-Code-diary uses Prettier for consistent markdown formatting. The configuration is stored in `.prettierrc.js` at the skill root, which means:
-
-- Your editor can automatically detect and apply formatting
-- The `format_worklog.cjs` script uses the same configuration
-- Consistent formatting across manual edits and automated updates
-
-**Editor setup:** Most editors with Prettier support will automatically detect `.prettierrc.js` and format markdown files on save.
+1. **Keep summaries concise**: Task summaries should fit comfortably in branch names (~50 chars)
+2. **Log work daily**: Regular logging makes weekly summaries more accurate
+3. **Use descriptive commits**: Better commit messages generate better work logs

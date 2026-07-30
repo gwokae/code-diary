@@ -63,27 +63,7 @@ Generate a concise technical paragraph (2-4 sentences) that describes:
 
 **IMPORTANT: Known Issue with log_work.cjs**
 
-The `log_work.cjs` script has aggressive duplicate detection (lines 256-285) that can silently skip adding entries when it detects similar content. This is particularly problematic for "log contribution" workflows where:
-
-- Multiple work items for the same task ID on the same day
-- Similar work descriptions that trigger false-positive duplicate detection
-- Updating entries that already exist in the worklog
-
-**Recommended approach for "log contribution":**
-
-1. Use `log_commits.cjs` to extract commit metadata and diffs
-2. Read the temp files and generate the summary
-3. **Manually add the entry using the Edit tool** instead of calling `log_work.cjs`
-4. Use Edit to insert the new entry in the correct location (under the proper date header)
-5. Run `format_worklog.cjs` to format the file
-6. Clean up temp files with `rm -rf /tmp/code-diary`
-
-This manual approach provides:
-
-- Full control over what gets added
-- No silent filtering or skipping of entries
-- Ability to verify the entry was actually added
-- More reliable for complex logging scenarios
+The `log_work.cjs` script has aggressive duplicate detection (lines 256-285) that can silently skip adding entries when it detects similar content — especially multiple work items for the same task ID on the same day, or similar-sounding descriptions. This is why the Interactive workflow above has Claude add the entry with the Edit tool directly rather than calling `log_work.cjs`: it gives full control over what gets added, no silent filtering, and lets Claude verify the entry actually landed.
 
 **When to still use log_work.cjs:**
 
@@ -139,10 +119,6 @@ month: 2026-01
   - Defined TypeScript interfaces
   - Added unit tests
 ```
-
-**Note:** Per-day logging scripts only manage the `### YYYY/MM/DD` daily entries. The "Last Week:" / "This week:" banner under `## Week N` is maintained separately by Workflow 6 (`compose weekly`).
-
-**Note:** Daily headers use `YYYY/MM/DD` format and are ordered newest to oldest (descending).
 
 ## Script reference: `log_commits.cjs`
 

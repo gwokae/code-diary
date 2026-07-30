@@ -51,8 +51,7 @@ node scripts/init_project.cjs my-project \
 
 ## Script reference: `init_project.cjs`
 
-- Usage: `node init_project.cjs <project-name> [options]`
-- Options: `--auto-detect`, `--issue-tracker-type`, `--issue-tracker-url`, `--issue-tracker-prefix`, `--main-branch`, `--feature-branch-rule`
+- Usage: `node init_project.cjs <project-name> [options]` — see Options above
 - Creates project directory structure and configuration file
 
 See [project_config.md](./project_config.md) for the full `project.json` schema.
