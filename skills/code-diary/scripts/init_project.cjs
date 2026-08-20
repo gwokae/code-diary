@@ -20,7 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { getWorklogsPath } = require('./config.cjs');
+const { getWorklogsPath, expandPath } = require('./config.cjs');
 
 function autoDetectSettings(cwd = process.cwd()) {
   const settings = {
@@ -70,6 +70,55 @@ function autoDetectSettings(cwd = process.cwd()) {
   return settings;
 }
 
+function normalizeRepositoryEntry(entry) {
+  if (!entry.name) {
+    throw new Error('Repository entry requires a "name"');
+  }
+  if (!entry.path) {
+    throw new Error(`Repository "${entry.name}" requires a "path"`);
+  }
+  if (!entry.mainBranch) {
+    throw new Error(`Repository "${entry.name}" requires a "mainBranch"`);
+  }
+
+  return {
+    name: entry.name,
+    path: expandPath(entry.path),
+    mainBranch: entry.mainBranch,
+    featureBranchRule: entry.featureBranchRule || 'feat/{filename}',
+  };
+}
+
+function addRepositoryToProject(projectName, repoOptions) {
+  const worklogsRoot = getWorklogsPath();
+  const configPath = path.join(worklogsRoot, projectName, 'project.json');
+
+  if (!fs.existsSync(configPath)) {
+    throw new Error(
+      `Project "${projectName}" does not exist at ${configPath}. Create it first with init_project.cjs.`,
+    );
+  }
+
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  const newEntry = normalizeRepositoryEntry(repoOptions);
+
+  if (!Array.isArray(config.repositories)) {
+    delete config.repository;
+    config.repositories = [];
+  }
+
+  if (config.repositories.some((repo) => repo.name === newEntry.name)) {
+    throw new Error(
+      `Repository "${newEntry.name}" already exists in project "${projectName}". Edit ${configPath} manually to update it.`,
+    );
+  }
+
+  config.repositories.push(newEntry);
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+
+  return { configPath, config };
+}
+
 function initProject(projectName, options = {}) {
   const worklogsRoot = getWorklogsPath();
   const projectPath = path.join(worklogsRoot, projectName);
@@ -117,10 +166,17 @@ function initProject(projectName, options = {}) {
   }
 
   // Add repository settings
-  config.repository = {
-    mainBranch: options.mainBranch || 'main',
-    featureBranchRule: options.featureBranchRule || 'feat/{filename}',
-  };
+  if (options.repositories) {
+    if (!Array.isArray(options.repositories) || options.repositories.length === 0) {
+      throw new Error('--repositories must be a non-empty JSON array');
+    }
+    config.repositories = options.repositories.map(normalizeRepositoryEntry);
+  } else {
+    config.repository = {
+      mainBranch: options.mainBranch || 'main',
+      featureBranchRule: options.featureBranchRule || 'feat/{filename}',
+    };
+  }
 
   // Write configuration
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
@@ -157,17 +213,30 @@ if (require.main === module) {
     console.log(
       '  --auto-detect                    Auto-detect settings from current directory',
     );
+    console.log(
+      '  --path <path>                    Absolute path to the repo (used with --add-repository or in --repositories entries)',
+    );
+    console.log(
+      '  --add-repository <name>          Append a repo to an existing project\'s repositories[] (needs --path and --main-branch)',
+    );
+    console.log(
+      '  --repositories <json>            Create a project with multiple repos in one shot: \'[{"name":..,"path":..,"mainBranch":..}]\'',
+    );
     console.log('');
     console.log('Examples:');
     console.log('  node init_project.cjs my-project --auto-detect');
     console.log(
       '  node init_project.cjs my-project --issue-tracker-type jira --issue-tracker-url https://example.atlassian.net --issue-tracker-prefix PROJ',
     );
+    console.log(
+      '  node init_project.cjs my-project --add-repository my-repo --path ~/workspace/my-repo --main-branch develop',
+    );
     process.exit(0);
   }
 
   const projectName = args[0];
   const options = {};
+  let addRepositoryName = null;
 
   // Parse arguments
   for (let i = 1; i < args.length; i++) {
@@ -192,21 +261,54 @@ if (require.main === module) {
     } else if (args[i] === '--feature-branch-rule' && i + 1 < args.length) {
       options.featureBranchRule = args[i + 1];
       i++;
+    } else if (args[i] === '--path' && i + 1 < args.length) {
+      options.path = args[i + 1];
+      i++;
+    } else if (args[i] === '--add-repository' && i + 1 < args.length) {
+      addRepositoryName = args[i + 1];
+      i++;
+    } else if (args[i] === '--repositories' && i + 1 < args.length) {
+      try {
+        options.repositories = JSON.parse(args[i + 1]);
+      } catch (error) {
+        console.error(`Error: --repositories value is not valid JSON: ${error.message}`);
+        process.exit(1);
+      }
+      i++;
     }
   }
 
+  if (addRepositoryName && options.repositories) {
+    console.error('Error: --add-repository and --repositories cannot be used together');
+    process.exit(1);
+  }
+
   try {
-    const result = initProject(projectName, options);
-    console.log(`✅ Project "${projectName}" initialized successfully!`);
-    console.log(`   Configuration: ${result.configPath}`);
-    console.log(`   Tasks directory: ${result.tasksPath}`);
-    console.log('');
-    console.log('Configuration:');
-    console.log(JSON.stringify(result.config, null, 2));
+    if (addRepositoryName) {
+      const result = addRepositoryToProject(projectName, {
+        name: addRepositoryName,
+        path: options.path,
+        mainBranch: options.mainBranch,
+        featureBranchRule: options.featureBranchRule,
+      });
+      console.log(`✅ Repository "${addRepositoryName}" added to project "${projectName}"!`);
+      console.log(`   Configuration: ${result.configPath}`);
+      console.log('');
+      console.log('Configuration:');
+      console.log(JSON.stringify(result.config, null, 2));
+    } else {
+      const result = initProject(projectName, options);
+      console.log(`✅ Project "${projectName}" initialized successfully!`);
+      console.log(`   Configuration: ${result.configPath}`);
+      console.log(`   Tasks directory: ${result.tasksPath}`);
+      console.log('');
+      console.log('Configuration:');
+      console.log(JSON.stringify(result.config, null, 2));
+    }
   } catch (error) {
     console.error(`Error: ${error.message}`);
     process.exit(1);
   }
 }
 
-module.exports = { initProject, autoDetectSettings };
+module.exports = { initProject, autoDetectSettings, addRepositoryToProject, normalizeRepositoryEntry };

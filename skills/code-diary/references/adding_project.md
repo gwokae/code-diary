@@ -20,6 +20,10 @@
   - `--main-branch <branch>`: Main branch name
   - `--feature-branch-rule <rule>`: Branch naming template
 
+- **Multi-repo project** (a project spanning several repos, e.g. one Jira project touching 4 repos):
+  - One-shot: `--repositories '<json-array>'`, each entry `{name, path, mainBranch, featureBranchRule?}`
+  - Incremental: `--add-repository <name> --path <path> --main-branch <branch> [--feature-branch-rule <rule>]` — appends to an *existing* project. The first `--add-repository` call on a project that still has the old singular `repository` field discards it and starts a fresh `repositories[]` — there's no automatic migration of the old field's values, since a placeholder single-repo guess usually doesn't match any of the real repos.
+
 **Examples:**
 
 Auto-detect settings from current directory:
@@ -40,14 +44,23 @@ node scripts/init_project.cjs my-project \
   --feature-branch-rule "feat/{filename}"
 ```
 
+Multi-repo, incremental:
+
+```bash
+node scripts/init_project.cjs mobility --issue-tracker-type jira --issue-tracker-url https://example.atlassian.net --issue-tracker-prefix PROJ
+node scripts/init_project.cjs mobility --add-repository umr       --path ~/workspace/umr       --main-branch develop
+node scripts/init_project.cjs mobility --add-repository ui-commons --path ~/workspace/ui-commons --main-branch main
+```
+
 **Output:**
 
 - Creates `<worklogsPath>/<project>/project.json`
 - Creates `<worklogsPath>/<project>/tasks/{new,working,archived}/`
 - Creates `<worklogsPath>/logs/` (if not exists)
 - Displays generated configuration
+- `--add-repository` only updates the existing `project.json` (appending to `repositories[]`) and displays the result — it creates no new directories.
 
-**Note:** If project already exists, script will error. Edit `project.json` manually to update configuration.
+**Note:** Plain `init_project.cjs <name> ...` (without `--add-repository`) errors if the project already exists. Use `--add-repository` to add a repo to an existing multi-repo project (see above). For anything else, edit `project.json` manually.
 
 ## Script reference: `init_project.cjs`
 

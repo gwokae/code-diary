@@ -48,8 +48,8 @@ The script outputs structured data to temp files in `/tmp/code-diary/`:
 2. Script outputs temp file paths in JSON format
 3. Claude reads the temp files and generates a cohesive paragraph summary
 4. Claude **manually adds the entry using Edit tool** (see "Known Issue" below for why)
-5. Claude runs `format_worklog.cjs` to format the file
-6. Claude cleans up temp files with `rm -rf /tmp/code-diary`
+5. Claude runs `validate_worklog.cjs --fix`, `format_worklog.cjs`, then `validate_worklog.cjs` without `--fix`
+6. Claude verifies the entry landed and cleans up temp files with `rm -rf /tmp/code-diary`
 
 **Summary format:**
 Generate a concise technical paragraph (2-4 sentences) that describes:
@@ -88,7 +88,7 @@ Both scripts automatically:
 
 - Ensure h2 week header exists (ordered desc by week number)
 - Ensure h3 daily header exists with format `### YYYY/MM/DD`
-- Maintain date ordering (newest first, descending)
+- Repair existing week and date ordering on every write (newest first, descending)
 - Create task entries with format `- <tracking-id>: <summary>`
 - Add work items as second-level list items
 - Format output with `scripts/format_worklog.cjs`
@@ -138,3 +138,10 @@ month: 2026-01
 - Automatically handles date formatting (YYYY/MM/DD) and ordering (descending)
 - Creates properly structured worklog entries with correct week/day headers
 - Formats output with prettier
+
+## Script reference: `validate_worklog.cjs`
+
+- Check: `node validate_worklog.cjs <worklog-file>`
+- Repair and check: `node validate_worklog.cjs --fix <worklog-file>`
+- Enforces unique, descending week headers; unique, descending day headers; and month/week membership
+- Run with `--fix` before formatting and without it afterward so structural errors fail visibly

@@ -197,6 +197,140 @@ function compareDates(dateStr1, dateStr2) {
 }
 
 /**
+ * Return worklog sections with weeks and their days ordered newest first.
+ * Existing malformed ordering is repaired on every write, not only when a
+ * new week or day is created.
+ */
+function normalizeWorklogSections(sections) {
+  const headerSections = sections.filter(
+    (section) => section.type === 'header',
+  );
+  const weekSections = sections
+    .filter((section) => section.type === 'week')
+    .map((week) => ({
+      ...week,
+      days: [...week.days].sort((a, b) => compareDates(a.date, b.date)),
+    }))
+    .sort((a, b) => b.weekNumber - a.weekNumber);
+
+  return [...headerSections, ...weekSections];
+}
+
+/**
+ * Validate structural invariants that prettier cannot enforce.
+ */
+function validateWorklogSections(sections, options = {}) {
+  const { expectedMonth } = options;
+  const errors = [];
+  const weeks = sections.filter((section) => section.type === 'week');
+  const seenWeeks = new Set();
+
+  for (let index = 0; index < weeks.length; index++) {
+    const week = weeks[index];
+
+    if (seenWeeks.has(week.weekNumber)) {
+      errors.push({
+        code: 'DUPLICATE_WEEK',
+        message: `Duplicate Week ${week.weekNumber} header`,
+      });
+    }
+    seenWeeks.add(week.weekNumber);
+
+    if (index > 0 && weeks[index - 1].weekNumber <= week.weekNumber) {
+      errors.push({
+        code: 'WEEK_ORDER',
+        message: 'Week headers must be ordered descending',
+      });
+    }
+
+    const seenDays = new Set();
+    for (let dayIndex = 0; dayIndex < week.days.length; dayIndex++) {
+      const day = week.days[dayIndex];
+      const normalizedDate = day.date.replace(/\//g, '-');
+
+      if (seenDays.has(day.date)) {
+        errors.push({
+          code: 'DUPLICATE_DAY',
+          message: `Duplicate ${day.date} header in Week ${week.weekNumber}`,
+        });
+      }
+      seenDays.add(day.date);
+
+      if (
+        dayIndex > 0 &&
+        compareDates(week.days[dayIndex - 1].date, day.date) > 0
+      ) {
+        errors.push({
+          code: 'DAY_ORDER',
+          message: `Dates in Week ${week.weekNumber} must be ordered descending`,
+        });
+      }
+
+      if (expectedMonth && !normalizedDate.startsWith(`${expectedMonth}-`)) {
+        errors.push({
+          code: 'MONTH_MISMATCH',
+          message: `${day.date} does not belong to ${expectedMonth}`,
+        });
+      }
+
+      if (getWeekInfo(normalizedDate).weekNumber !== week.weekNumber) {
+        errors.push({
+          code: 'WEEK_MISMATCH',
+          message: `${day.date} does not belong to Week ${week.weekNumber}`,
+        });
+      }
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Serialize parsed worklog sections without changing their content.
+ */
+function serializeWorklog(sections) {
+  const output = [];
+
+  for (const section of sections.filter((item) => item.type === 'header')) {
+    output.push(...section.lines);
+  }
+
+  for (const week of sections.filter((item) => item.type === 'week')) {
+    output.push('');
+    output.push(week.header);
+    output.push(...week.content);
+
+    for (const day of week.days) {
+      output.push('');
+      output.push(day.header);
+      output.push(...day.content);
+
+      for (const task of day.tasks) {
+        output.push('');
+        output.push(`- ${task.trackingId}: ${task.summary}`);
+        output.push(...task.content);
+      }
+    }
+  }
+
+  return `${output.join('\n')}\n`;
+}
+
+function writeFileAtomically(filePath, content) {
+  const temporaryPath = path.join(
+    path.dirname(filePath),
+    `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`,
+  );
+
+  try {
+    fs.writeFileSync(temporaryPath, content, 'utf-8');
+    fs.renameSync(temporaryPath, filePath);
+  } finally {
+    if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath);
+  }
+}
+
+/**
  * Check if work item is redundant with task summary
  * Removes common prefixes, normalizes text, and checks for similarity
  */
@@ -349,11 +483,6 @@ function logWork(options) {
       days: [],
     };
     sections.push(weekSection);
-    // Sort weeks by week number (descending)
-    sections.sort((a, b) => {
-      if (a.type !== 'week' || b.type !== 'week') return 0;
-      return b.weekNumber - a.weekNumber;
-    });
   }
 
   // Find or create day section
@@ -368,8 +497,6 @@ function logWork(options) {
       tasks: [],
     };
     weekSection.days.push(daySection);
-    // Sort days by date (descending - newest first)
-    weekSection.days.sort((a, b) => compareDates(a.date, b.date));
   }
 
   // Add all tasks to the day section
@@ -377,42 +504,15 @@ function logWork(options) {
     addTaskToDay(daySection, taskData);
   }
 
-  // Rebuild content
-  let output = [];
-
-  // Add header sections
-  const headerSections = sections.filter((s) => s.type === 'header');
-  for (const section of headerSections) {
-    output.push(...section.lines);
+  const normalizedSections = normalizeWorklogSections(sections);
+  const validationErrors = validateWorklogSections(normalizedSections, {
+    expectedMonth: weekInfo.month,
+  });
+  if (validationErrors.length > 0) {
+    throw new Error(validationErrors.map((error) => error.message).join('; '));
   }
 
-  // Add week sections
-  const weekSections = sections.filter((s) => s.type === 'week');
-  for (const week of weekSections) {
-    output.push('');
-    output.push(week.header);
-    output.push(...week.content);
-
-    // Add days
-    for (const day of week.days) {
-      output.push('');
-      output.push(day.header);
-      if (day.content.length > 0) {
-        output.push(...day.content);
-      }
-
-      // Add tasks
-      for (const task of day.tasks) {
-        output.push('');
-        output.push(`- ${task.trackingId}: ${task.summary}`);
-        output.push(...task.content);
-      }
-    }
-  }
-
-  // Write file
-  const newContent = output.join('\n') + '\n';
-  fs.writeFileSync(worklogFile, newContent, 'utf-8');
+  writeFileAtomically(worklogFile, serializeWorklog(normalizedSections));
 
   // Format with prettier
   formatWorklog(worklogFile);
@@ -464,4 +564,15 @@ if (require.main === module) {
   }
 }
 
-module.exports = { logWork, addTaskToDay, parseWorklog, formatDateHeader, compareDates, isRedundantWithSummary };
+module.exports = {
+  addTaskToDay,
+  compareDates,
+  formatDateHeader,
+  isRedundantWithSummary,
+  logWork,
+  normalizeWorklogSections,
+  parseWorklog,
+  serializeWorklog,
+  validateWorklogSections,
+  writeFileAtomically,
+};

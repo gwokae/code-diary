@@ -25,7 +25,8 @@ Code-diary automatically detects the current project from the working directory 
 
 1. **Directory name**: Matches current directory name (e.g., `/workspace/my-project` → project "my-project")
 2. **Git remote URL**: Extracts project name from git remote (e.g., `git@github.com:user/my-project.git` → project "my-project")
-3. **Manual fallback**: Lists available projects if detection fails
+3. **Multi-repo scan**: For projects spanning several repos (`repositories[]` in `project.json` instead of a single `repository`), matches the current directory against each repo's registered `path` or `name` — see `references/project_config.md`
+4. **Manual fallback**: Lists available projects if detection fails
 
 **Usage:**
 
@@ -40,7 +41,8 @@ If project detection fails, available projects are listed for manual selection.
 Every workflow below follows the same bookends, so the individual workflow references don't repeat them:
 
 - **Start:** detect the current project with `scripts/get_current_project.cjs`
-- **End:** format the touched worklog/task file with `scripts/format_worklog.cjs` (uses the same `.prettierrc.js` at the skill root that editors pick up automatically, so manual edits stay consistent too)
+- **End for worklogs:** run `scripts/validate_worklog.cjs --fix <file>`, format with `scripts/format_worklog.cjs <file>`, then run `scripts/validate_worklog.cjs <file>` to verify week/day ordering and structure
+- **End for task files:** format the touched file with `scripts/format_worklog.cjs` (uses the skill's `.prettierrc.js`)
 
 ## Configuration
 

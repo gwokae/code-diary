@@ -32,7 +32,8 @@ Dashboard Automations Triggers - Sensors
      - `tracking_id`: From input or auto-generated (YYYYMMDD format)
      - `summary`: Task summary
      - `status`: "new"
-     - `branch`: Generated from filename using project's `featureBranchRule`
+     - `branch`: Generated from filename using project's `featureBranchRule` — **only for single-repo projects** (`get_current_project.cjs` result has no `repositories` key)
+     - For multi-repo projects (result has a `repositories` key): use `branches: []` (empty list) instead of `branch` — which repo(s) this task touches isn't known until a branch is actually created during Workflow 3 (Switching Tasks). `assets/task_template.md` is shared by all projects and still shows a single `branch: {{BRANCH_NAME}}` line — for multi-repo projects, replace that line with `branches: []` when filling in the template.
      - `created`: Current ISO datetime with timezone
      - `project`: Auto-detected project name
 4. Format files with `scripts/format_worklog.cjs`

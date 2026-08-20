@@ -35,7 +35,7 @@ Issue tracking system configuration.
 - **`baseUrl`** (string): Base URL for the issue tracker
 - **`projectPrefix`** (string): Project prefix for issues (e.g., "PROJ" for PROJ-123)
 
-### `repository` (object, required)
+### `repository` (object, required unless using `repositories`)
 
 Git repository settings.
 
@@ -46,6 +46,29 @@ Git repository settings.
     - `"feat/{filename}"` → `feat/PROJ-123_dashboard-automations`
     - `"feature/{filename}"` → `feature/PROJ-123_dashboard-automations`
     - `"{filename}"` → `PROJ-123_dashboard-automations`
+
+### `repositories` (array, optional)
+
+Alternative to `repository`, for a project that spans multiple repos sharing one Jira/issue-tracker config. Mutually exclusive with `repository` — a project has one or the other, never both.
+
+Each entry:
+
+```json
+{
+  "name": "umr-local",
+  "path": "/Users/you/workspace/umr-local",
+  "mainBranch": "main",
+  "featureBranchRule": "feat/{filename}"
+}
+```
+
+- **`name`**: stable identifier, used as a fallback match (directory basename or git remote) and as the `repo` key in a multi-repo task's `branches:` frontmatter list.
+- **`path`**: absolute, this-machine path to the repo. Primary match for detection; also where to `cd` when acting on this repo.
+- **`mainBranch`** / **`featureBranchRule`**: same meaning as the singular `repository` fields, but scoped to this one repo.
+
+### `activeRepository` (in `get_current_project.cjs` output, not in `project.json`)
+
+Every successful `get_current_project.cjs` result includes a normalized `activeRepository: { name, path, mainBranch, featureBranchRule }`, resolved from whichever repo matches the cwd you passed in. For a project using `repository` (legacy) or matched via a `repositories[]` entry, this is always populated. If a `repositories[]`-based project is instead matched by its own top-level name or git-remote (an unusual setup — the project's own registered name coinciding with a directory that isn't actually one of its repos), `activeRepository` is `null` rather than back-resolved. Read `activeRepository.mainBranch` (not `config.repository.mainBranch`) when you need "the main branch for the repo I'm currently in." Multi-repo results also include the full `repositories` array.
 
 ## Example Configuration
 

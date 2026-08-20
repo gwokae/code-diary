@@ -24,6 +24,7 @@
 
 6. Git workflow:
    - Ensure working directory is clean
+   - Resolve the base branch from `activeRepository.mainBranch` (from `get_current_project.cjs`'s output for your current cwd) — **not** `config.repository.mainBranch` directly. This is the same field for single- and multi-repo projects, so this step doesn't change based on project type.
    - Check if branch exists:
      - If exists: Switch to branch
      - If not exists (creating a new branch):
@@ -50,6 +51,13 @@ If reopening/reworking a task on a different branch:
   squash-merge caveat below — the previous round's code is almost always
   already in `develop`, so basing the rework on `origin/develop` avoids
   re-introducing duplicate commits and the conflicts they cause.
+
+**Multi-repo projects — recording branches per repo:**
+If the current project's `get_current_project.cjs` result has a `repositories` key, the task file's frontmatter uses `branches: [{repo, branch}]` instead of a single `branch:` string (see `adding_tasks.md`). When creating or switching to a branch:
+
+- If `activeRepository.name` is already in the task's `branches:` list, use its recorded `branch` value rather than generating a new one.
+- Otherwise, generate the branch name the same way the single-repo case does — from the task's filename — but using `activeRepository.featureBranchRule` (this repo's rule) instead of the project's own `featureBranchRule`. Append `{repo: activeRepository.name, branch: <the generated name>}` to `branches:`.
+- Most tasks still touch only one repo — `branches:` having one entry is the common case, not a sign something's wrong.
 
 **Squash-merge caveat — "unmerged-looking" feature branches:**
 This project **squashes and rebases** feature branches on merge in GitHub.

@@ -126,6 +126,7 @@ module.exports = {
   getWorklogsPath,
   isConfigured,
   getSetupInstructions,
+  expandPath,
   ENV_VAR,
   DEFAULT_PATH,
 };
