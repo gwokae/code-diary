@@ -1,6 +1,6 @@
 ---
 name: code-diary
-description: Developer task management and work logging system. Use to add a project, add a task, switch tasks, log work from git commits, archive a task, or generate a weekly summary. Integrates with JIRA, GitHub, and Linear issue trackers via git workflows.
+description: Developer task management and work logging system. Use to add a project, add a task, switch tasks, log work from git commits, archive a task, generate a weekly summary, or track OKRs (recording a period's Objectives/KRs, mapping tasks to a KR, or reporting KR progress). Integrates with JIRA, GitHub, and Linear issue trackers via git workflows.
 ---
 
 # Code Diary
@@ -16,6 +16,7 @@ Code-diary helps developers:
 - Log daily work based on git commits
 - Generate weekly summaries
 - Organize work by project
+- Map tasks to OKRs and read KR progress straight off the OKR file
 
 ## Automatic Project Detection
 
@@ -60,6 +61,9 @@ Code-diary uses a hybrid structure:
 ├── logs/                    # Global worklog files (cross-project)
 │   ├── 2026-01.md
 │   └── 2026-02.md
+├── okrs/                    # Global OKR files, one per period (cross-project)
+│   ├── 2026-h2.md
+│   └── 2027-h1.md
 └── <project-name>/
     ├── project.json
     └── tasks/
@@ -109,6 +113,12 @@ Read [references/archiving_tasks.md](./references/archiving_tasks.md) before exe
 **When to use:** Run on `compose weekly` to add or refresh the "Last Week:" / "This week:" banner at the top of the current week's section.
 
 Read [references/weekly_summary.md](./references/weekly_summary.md) before executing.
+
+### 7. OKR Tracking
+
+**When to use:** Recording a new period's OKRs (Objective → KR → Metric), mapping a task to a KR when adding it (Workflow 2), checking off a KR's linked task when archiving it (Workflow 5), or reporting progress on a KR. This workflow hooks into Workflows 2 and 5 rather than standing alone — read it whenever those two mention an OKR step.
+
+Read [references/okr_tracking.md](./references/okr_tracking.md) before executing.
 
 ## Best Practices
 

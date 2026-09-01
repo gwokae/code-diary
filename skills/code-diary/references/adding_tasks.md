@@ -36,8 +36,10 @@ Dashboard Automations Triggers - Sensors
      - For multi-repo projects (result has a `repositories` key): use `branches: []` (empty list) instead of `branch` — which repo(s) this task touches isn't known until a branch is actually created during Workflow 3 (Switching Tasks). `assets/task_template.md` is shared by all projects and still shows a single `branch: {{BRANCH_NAME}}` line — for multi-repo projects, replace that line with `branches: []` when filling in the template.
      - `created`: Current ISO datetime with timezone
      - `project`: Auto-detected project name
-4. Format files with `scripts/format_worklog.cjs`
-5. Refresh the current week's "This week:" banner by running Workflow 6 (`compose weekly`) — the banner is derived from `new/` + `working/`, so adding a task means the next `compose weekly` will pick it up automatically. Do not edit the worklog directly from this workflow.
+     - `okrs`: `[]` by default — see step 4 below
+4. Check for an OKR mapping (see [okr_tracking.md](./okr_tracking.md) for the full workflow): run `scripts/list_okrs.cjs` and, only if the task obviously advances one of the current period's KR metrics, set `okrs: [<id>, ...]` and run `scripts/link_okr_task.cjs` for each id. Zero mappings is the normal case — don't force one.
+5. Format files with `scripts/format_worklog.cjs`
+6. Refresh the current week's "This week:" banner by running Workflow 6 (`compose weekly`) — the banner is derived from `new/` + `working/`, so adding a task means the next `compose weekly` will pick it up automatically. Do not edit the worklog directly from this workflow.
 
 **Output:** Confirm tasks created with filenames and locations.
 

@@ -3,6 +3,7 @@ tracking_id: {{TRACKING_ID}}
 summary: {{SUMMARY}}
 status: {{STATUS}}
 branch: {{BRANCH_NAME}}
+okrs: []
 created: {{CREATED_DATETIME}}
 project: {{PROJECT_NAME}}
 ---
